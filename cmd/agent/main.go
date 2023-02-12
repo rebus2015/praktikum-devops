@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -119,7 +120,7 @@ func makereq(typename string, name string, val string) *http.Request {
 		name,
 		val)
 	if err != nil {
-		panic(fmt.Sprintf("Url JoinPath failed! with error: %v", err))
+		log.Panicf("Url JoinPath failed! with error: %v", err)
 	}
 	queryurl := url.URL{
 		Scheme: "http",
@@ -128,7 +129,7 @@ func makereq(typename string, name string, val string) *http.Request {
 	}
 	req, err := http.NewRequest(http.MethodPost, queryurl.String(), nil)
 	if err != nil {
-		panic(fmt.Sprintf("Create Request failed! with error: %v", err))
+		log.Panicf("Create Request failed! with error: %v", err)
 	}
 	req.Header.Add("Content-Type", "text/plain")
 	return req
@@ -137,12 +138,12 @@ func makereq(typename string, name string, val string) *http.Request {
 func sendreq(r *http.Request, c *http.Client) {
 	response, err := c.Do(r)
 	if err != nil {
-		panic(fmt.Sprintf("Client request %v failed with error: %v", r.RequestURI, err))
+		log.Panicf("Client request %v failed with error: %v", r.RequestURI, err)
 	}
 	defer response.Body.Close()
 	_, err1 := io.Copy(io.Discard, response.Body)
 	if err != nil {
-		panic(err1)
+		log.Panic(err1)
 	}
 }
 
@@ -173,21 +174,22 @@ func main() {
 			}
 		case s := <-sndticker.C:
 			{
+				client := &http.Client{}
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					// 			sendreq(
-					// 				makereq(reflect.TypeOf(v).Name(),g,v.String()),
-					// 				client)
+					sendreq(
+						makereq(reflect.TypeOf(v).Name(), g, v.String()),
+						client)
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String()).URL)
 					fmt.Println("")
 				}
 
 				//отправляем статистику counter
-				//sendreq(
-				r := makereq(reflect.TypeOf(m.PollCount).Name(),
-					"PollCount",
-					m.PollCount.String()) //,client)
-				fmt.Printf("%v %v Send Statistic", s, r.URL)
+				sendreq(
+					makereq(reflect.TypeOf(m.PollCount).Name(),
+						"PollCount",
+						m.PollCount.String()), client)
+				fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(m.PollCount).Name(), "PollCount", m.PollCount.String()))
 				fmt.Println("")
 			}
 		}
