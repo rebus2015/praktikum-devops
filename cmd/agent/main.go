@@ -1,113 +1,195 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
+	"io"
 	"math/rand"
+	"net/http"
+	"net/url"
+	"reflect"
 	"runtime"
 	"time"
-	//"net/http"
-	//"net/url"
 	//"os"
 )
 
 type gauge float64
 type counter int64
 
-type metrics struct {
-	alloc       gauge
-	buckhashsys gauge
-	pollcount   counter
-	randomvalue gauge
+func (g gauge) String() string {
+	x := fmt.Sprintf("%v", float64(g))
+	return x
+}
+func (c counter) String() string {
+	x := fmt.Sprintf("%v", int64(c))
+	return x
 }
 
-func (m *metrics) Update() {
-
-	var memoryStat runtime.MemStats
-
-	runtime.ReadMemStats(&memoryStat)
-
-	(*m).alloc = gauge(memoryStat.Alloc)
-	(*m).buckhashsys = gauge(memoryStat.BuckHashSys)
-	(*m).pollcount++
-	(*m).randomvalue = gauge(rand.Float64())
+type metricset struct {
+	gauges    map[string]gauge
+	PollCount counter
 }
 
-func Uint64() uint64 {
-	buf := make([]byte, 8)
-	rand.Read(buf) // Always succeeds, no need to check error
-	return binary.LittleEndian.Uint64(buf)
+// type metrics struct{
+// 	mlist []t
+// }
+
+// type t struct{
+// 	name string
+// 	typename string
+// 	value Stringer
+// }
+
+func (m *metricset) Declare() {
+	m.PollCount = 0
+	m.gauges = map[string]gauge{
+		"Alloc":         0,
+		"BuckHashSys":   0,
+		"Frees":         0,
+		"GCCPUFraction": 0,
+		"GCSys":         0,
+		"HeapAlloc":     0,
+		"HeapIdle":      0,
+		"HeapInuse":     0,
+		"HeapObjects":   0,
+		"HeapReleased":  0,
+		"HeapSys":       0,
+		"LastGC":        0,
+		"Lookups":       0,
+		"MCacheInuse":   0,
+		"MCacheSys":     0,
+		"MSpanInuse":    0,
+		"MSpanSys":      0,
+		"Mallocs":       0,
+		"NextGC":        0,
+		"NumForcedGC":   0,
+		"NumGC":         0,
+		"OtherSys":      0,
+		"PauseTotalNs":  0,
+		"StackInuse":    0,
+		"StackSys":      0,
+		"Sys":           0,
+		"TotalAlloc":    0,
+		"RandomValue":   0,
+	}
 }
 
+func (m *metricset) Update() {
+
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+
+	m.PollCount++
+
+	m.gauges["Alloc"] = gauge(ms.Alloc)
+	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
+	m.gauges["Frees"] = gauge(ms.Frees)
+	m.gauges["GCCPUFraction"] = gauge(ms.GCCPUFraction)
+	m.gauges["GCSys"] = gauge(ms.GCSys)
+	m.gauges["HeapAlloc"] = gauge(ms.HeapAlloc)
+	m.gauges["HeapIdle"] = gauge(ms.HeapIdle)
+	m.gauges["HeapInuse"] = gauge(ms.HeapInuse)
+	m.gauges["HeapObjects"] = gauge(ms.HeapObjects)
+	m.gauges["HeapReleased"] = gauge(ms.HeapReleased)
+	m.gauges["HeapSys"] = gauge(ms.HeapSys)
+	m.gauges["LastGC"] = gauge(ms.LastGC)
+	m.gauges["Lookups"] = gauge(ms.Lookups)
+	m.gauges["MCacheInuse"] = gauge(ms.MCacheInuse)
+	m.gauges["MCacheSys"] = gauge(ms.MCacheSys)
+	m.gauges["MSpanInuse"] = gauge(ms.MSpanInuse)
+	m.gauges["MSpanSys"] = gauge(ms.MSpanSys)
+	m.gauges["Mallocs"] = gauge(ms.Mallocs)
+	m.gauges["NextGC"] = gauge(ms.NextGC)
+	m.gauges["NumForcedGC"] = gauge(ms.NumForcedGC)
+	m.gauges["NumGC"] = gauge(ms.NumGC)
+	m.gauges["OtherSys"] = gauge(ms.OtherSys)
+	m.gauges["PauseTotalNs"] = gauge(ms.PauseTotalNs)
+	m.gauges["StackInuse"] = gauge(ms.StackInuse)
+	m.gauges["StackSys"] = gauge(ms.StackSys)
+	m.gauges["Sys"] = gauge(ms.Sys)
+	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
+	m.gauges["RandomValue"] = gauge(rand.Float32())
+}
+
+func makereq(typename string, name string, val string) *http.Request {
+	//TODO дописать возврат запроса и формирование URL
+	//http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
+	path, err := url.JoinPath(
+		"update",
+		typename,
+		name,
+		val)
+	if err != nil {
+		panic(fmt.Sprintf("Url JoinPath failed! with error: %v", err))
+	}
+	queryurl := url.URL{
+		Scheme: "http",
+		Host:   hostip,
+		Path:   path,
+	}
+	req, err := http.NewRequest(http.MethodPost, queryurl.String(), nil)
+	if err != nil {
+		panic(fmt.Sprintf("Create Request failed! with error: %v", err))
+	}
+	req.Header.Add("Content-Type", "text/plain")
+	return req
+}
+
+func sendreq(r *http.Request, c *http.Client) {
+	response, err := c.Do(r)
+	if err != nil {
+		panic(fmt.Sprintf("Client request %v failed with error: %v", r.RequestURI, err))
+	}
+	defer response.Body.Close()
+	_, err1 := io.Copy(io.Discard, response.Body)
+	if err != nil {
+		panic(err1)
+	}
+}
+
+const hostip string = "127.0.0.1:8080"
 const pollinterval time.Duration = 2 * time.Second
 const reportintelval time.Duration = 10 * time.Second
+
 //const endpoint string := "http://localhost:8080/"
 
 func main() {
 
-	m := metrics{}
+	m := metricset{}
+	m.Declare()
+
 	updticker := time.NewTicker(pollinterval)
 	sndticker := time.NewTicker(reportintelval)
-   
-	//client := &http.Client{}
-	
+
 	defer updticker.Stop()
 	defer sndticker.Stop()
-
-	
 
 	for {
 		select {
 		case t := <-updticker.C:
 			{
 				m.Update()
-				fmt.Printf("%v %v", t, m)
+				fmt.Printf("%v Updateed metrics", t)
 				fmt.Println("")
 			}
 		case s := <-sndticker.C:
 			{
+				//отправляем статистику для gauge
+				for g, v := range m.gauges {
+					// 			sendreq(
+					// 				makereq(reflect.TypeOf(v).Name(),g,v.String()),
+					// 				client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String()).URL)
+					fmt.Println("")
+				}
 
-				fmt.Printf("%v Send Statistic", s)
+				//отправляем статистику counter
+				//sendreq(
+				r := makereq(reflect.TypeOf(m.PollCount).Name(),
+					"PollCount",
+					m.PollCount.String()) //,client)
+				fmt.Printf("%v %v Send Statistic", s, r.URL)
 				fmt.Println("")
 			}
 		}
 	}
-
-
-	// адрес сервиса (как его писать, расскажем в следующем уроке)
-	
-
-	// приглашение в консоли
-
-	// // конструируем HTTP-клиент
-	// client := &http.Client{}
-	// // конструируем запрос
-	// // запрос методом POST должен, кроме заголовков, содержать тело
-	// // тело должно быть источником потокового чтения io.Reader
-	// // в большинстве случаев отлично подходит bytes.Buffer
-	// request, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(data.Encode()))
-	// if err != nil {
-	//     fmt.Println(err)
-	//     os.Exit(1)
-	// }
-	// // в заголовках запроса сообщаем, что данные кодированы стандартной URL-схемой
-	// request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	// request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
-	// // отправляем запрос и получаем ответ
-	// response, err := client.Do(request)
-	// if err != nil {
-	//     fmt.Println(err)
-	//     os.Exit(1)
-	// }
-	// // печатаем код ответа
-	// fmt.Println("Статус-код ", response.Status)
-	// defer response.Body.Close()
-	// // читаем поток из тела ответа
-	// body, err := io.ReadAll(response.Body)
-	// if err != nil {
-	//     fmt.Println(err)
-	//     os.Exit(1)
-	// }
-	// // и печатаем его
-	// fmt.Println(string(body))
 }
