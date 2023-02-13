@@ -7,8 +7,11 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"reflect"
 	"runtime"
+	"syscall"
 	"time"
 	//"os"
 )
@@ -158,6 +161,12 @@ func main() {
 	m := metricset{}
 	m.Declare()
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
 	updticker := time.NewTicker(pollinterval)
 	sndticker := time.NewTicker(reportintelval)
 
@@ -191,6 +200,11 @@ func main() {
 						m.PollCount.String()), client)
 				fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(m.PollCount).Name(), "PollCount", m.PollCount.String()))
 				fmt.Println("")
+			}
+		case q := <-sigChan:
+			{
+				fmt.Printf("q: %v\n", q)
+				//TODO корректно завершить обработку
 			}
 		}
 	}
