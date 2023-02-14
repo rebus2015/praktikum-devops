@@ -200,6 +200,7 @@ func main() {
 						m.PollCount.String()), client)
 				fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(m.PollCount).Name(), "PollCount", m.PollCount.String()))
 				fmt.Println("")
+				m.PollCount = 0
 			}
 		case q := <-sigChan:
 			{
