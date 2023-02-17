@@ -21,36 +21,37 @@ func (c *CMetric) TryParse(cname string, cval string) error {
 		log.Panic(err)
 		return err
 	}
-
-	c = &CMetric{cname, counter(v)}
+	c.Name = cname
+	c.Val = Counter(v)
 	return nil
 }
-func (g *GMetric) TryParse(cname string, gval string) error {
+func (g *GMetric) TryParse(gname string, gval string) error {
 	v, err := strconv.ParseFloat(gval, 64)
 	if err != nil {
 		log.Panic(err)
 		return err
 	}
-	g = &GMetric{cname, gauge(v)}
-	return err
+	g.Name = gname
+	g.Val = Gauge(v)
+	return nil
 }
 
-type gauge float64
-type counter int64
+type Gauge float64
+type Counter int64
 
 type GMetric struct {
 	Name string
-	Val  gauge
+	Val  Gauge
 }
 
 type CMetric struct {
 	Name string
-	Val  counter
+	Val  Counter
 }
 
 type MemStorage struct {
-	Gauges   map[string]gauge
-	Counters map[string]counter
+	Gauges   map[string]Gauge
+	Counters map[string]Counter
 }
 
 type Repository interface {
@@ -60,14 +61,30 @@ type Repository interface {
 }
 
 func (m *MemStorage) Init() {
-	m.Gauges = make(map[string]gauge)
-	m.Counters = make(map[string]counter)
+	m.Gauges = make(map[string]Gauge)
+	m.Counters = make(map[string]Counter)
 }
 
 func (m *MemStorage) AddGauge(g GMetric) {
+	if m == nil {
+		return
+	}
+	if m.Gauges == nil {
+		return
+	}
 	m.Gauges[g.Name] = g.Val
 }
 
 func (m *MemStorage) AddCounter(c CMetric) {
+	if m == nil {
+		return
+	}
+	if m.Counters == nil {
+		return
+	}
+	if _, ok := m.Counters[c.Name]; !ok {
+		m.Counters[c.Name] = c.Val
+		return
+	}
 	m.Counters[c.Name] = m.Counters[c.Name] + c.Val
 }
