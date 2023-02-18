@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,7 +42,10 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			// запускаем сервер
 			h.ServeHTTP(w, request)
 			res := w.Result()
-
+			_, err := io.ReadAll(res.Body)
+			assert.NoError(t, err)
+			err = res.Body.Close()
+			assert.NoError(t, err)
 			// проверяем код ответа
 			assert.Equal(t, tt.args.code, res.StatusCode)
 		})
@@ -81,7 +85,10 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 			// запускаем сервер
 			h.ServeHTTP(w, request)
 			res := w.Result()
-
+			_, err := io.ReadAll(res.Body)
+			assert.NoError(t, err)
+			err = res.Body.Close()
+			assert.NoError(t, err)
 			// проверяем код ответа
 			assert.Equal(t, tt.args.code, res.StatusCode)
 		})
