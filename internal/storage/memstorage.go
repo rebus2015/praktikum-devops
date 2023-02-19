@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -18,7 +17,6 @@ func (c CMetric) String() string {
 func (c *CMetric) TryParse(cname string, cval string) error {
 	v, err := strconv.ParseInt(cval, 10, 64)
 	if err != nil {
-		log.Panic(err)
 		return err
 	}
 	c.Name = cname
@@ -28,7 +26,6 @@ func (c *CMetric) TryParse(cname string, cval string) error {
 func (g *GMetric) TryParse(gname string, gval string) error {
 	v, err := strconv.ParseFloat(gval, 64)
 	if err != nil {
-		log.Panic(err)
 		return err
 	}
 	g.Name = gname
