@@ -39,6 +39,10 @@ func (g *GMetric) TryParse(gname string, gval string) error {
 
 type Gauge float64
 type Counter int64
+type MetricStr struct{
+	Name string
+	Val string
+}
 
 type GMetric struct {
 	Name string
@@ -61,7 +65,7 @@ type Repository interface {
 	AddCounter(name string, val string) error
 	GetCounter(name string) (string, error)
 	GetGauge(name string) (string, error)
-	GetView() (map[string]string, error)
+	GetView() ([]MetricStr, error)
 }
 
 func (m *MemStorage) Init() {
@@ -137,13 +141,14 @@ func (m *MemStorage) GetGauge(name string) (string, error) {
 	return fmt.Sprintf("%v", float64(m.Gauges[name])), nil
 }
 
-func (m *MemStorage) GetView() (map[string]string, error) {
-	view := make(map[string]string)
+func (m *MemStorage) GetView() ([]MetricStr, error) {
+	view := []MetricStr{}
 	for key, val := range m.Counters {
-		view[key] = fmt.Sprintf("%v", val)
+		view = append(view,MetricStr{key,fmt.Sprintf("%v",val)})
+		
 	}
 	for key, val := range m.Gauges {
-		view[key] = fmt.Sprintf("%v", val)
+		view = append(view,MetricStr{key,fmt.Sprintf("%v",val)})
 	}
 	return view, nil
 }

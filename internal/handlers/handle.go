@@ -23,8 +23,8 @@ const templ = `{{define "metrics"}}
         <th>value</th>
         {{range .}}
         <tr>
-            <td>{{.name}}</td>
-            <td>{{.value}}</td>
+            <td>{{.Name}}</td>
+            <td>{{.Val}}</td>
         </tr>
         {{end}}
     </table>
