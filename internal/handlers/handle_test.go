@@ -33,21 +33,14 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
-			request.Header.Add("content-type", tt.contentType)
-			// создаём новый Recorder
-			w := httptest.NewRecorder()
-			// определяем хендлер
-			h := http.HandlerFunc(UpdateCounterHandlerFunc)
-			// запускаем сервер
-			h.ServeHTTP(w, request)
-			res := w.Result()
-			_, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
-			err = res.Body.Close()
-			assert.NoError(t, err)
+			r := NewRouter()
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequest(t, ts, tt.method, tt.request)
 			// проверяем код ответа
-			assert.Equal(t, tt.args.code, res.StatusCode)
+			assert.Equal(t, tt.args.code, statusCode)
+
 		})
 	}
 }
@@ -74,23 +67,32 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
-			request.Header.Add("content-type", tt.contentType)
-			// создаём новый Recorder
-			w := httptest.NewRecorder()
-			// определяем хендлер
-			h := http.HandlerFunc(UpdateGaugeHandlerFunc)
-			// запускаем сервер
-			h.ServeHTTP(w, request)
-			res := w.Result()
-			_, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
-			err = res.Body.Close()
-			assert.NoError(t, err)
+			r := NewRouter()
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequest(t, ts, tt.method, tt.request)
 			// проверяем код ответа
-			assert.Equal(t, tt.args.code, res.StatusCode)
+			assert.Equal(t, tt.args.code, statusCode)
+
 		})
 	}
+}
+
+func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, string) {
+	req, err := http.NewRequest(method, ts.URL+path, nil)
+	assert.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+
+	respBody, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	return resp.StatusCode, string(respBody)
 }

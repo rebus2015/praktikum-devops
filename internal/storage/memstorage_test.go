@@ -112,7 +112,9 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		Counters map[string]Counter
 	}
 	type args struct {
-		g GMetric
+		name     string
+		val      string
+		floatval float64
 	}
 	tests := []struct {
 		name string
@@ -125,7 +127,7 @@ func TestMemStorage_AddGauge(t *testing.T) {
 				map[string]Gauge{"g1": Gauge(-32.00023)},
 				map[string]Counter{"c1": Counter(0)},
 			},
-			args{GMetric{Name: "gm", Val: Gauge(234)}},
+			args{name: "gm", val: "234", floatval: 234},
 		},
 	}
 	for _, tt := range tests {
@@ -134,9 +136,9 @@ func TestMemStorage_AddGauge(t *testing.T) {
 				Gauges:   tt.r.Gauges,
 				Counters: tt.r.Counters,
 			}
-			m.AddGauge(tt.args.g)
-			_, exists := m.Gauges[tt.args.g.Name]
-			assert.True(t, exists && m.Gauges[tt.args.g.Name] == tt.args.g.Val)
+			m.AddGauge(tt.args.name, tt.args.val)
+			_, exists := m.Gauges[tt.args.name]
+			assert.True(t, exists && m.Gauges[tt.args.name] == Gauge(tt.args.floatval))
 		})
 	}
 }
@@ -147,7 +149,9 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		Counters map[string]Counter
 	}
 	type args struct {
-		c CMetric
+		name   string
+		val    string
+		intval int64
 	}
 	tests := []struct {
 		name string
@@ -160,7 +164,7 @@ func TestMemStorage_AddCounter(t *testing.T) {
 				map[string]Gauge{"g1": Gauge(-32.00023)},
 				map[string]Counter{"c1": Counter(100)},
 			},
-			args{CMetric{Name: "c1", Val: Counter(3)}},
+			args{name: "c1", val: "3", intval: 103},
 		},
 	}
 	for _, tt := range tests {
@@ -169,10 +173,9 @@ func TestMemStorage_AddCounter(t *testing.T) {
 				Gauges:   tt.r.Gauges,
 				Counters: tt.r.Counters,
 			}
-			c := tt.args.c
-			m.AddCounter(c)
-			_, exists := m.Counters[tt.args.c.Name]
-			assert.True(t, exists && m.Counters[tt.args.c.Name] == Counter(103))
+			m.AddCounter(tt.args.name, tt.args.val)
+			_, exists := m.Counters[tt.args.name]
+			assert.True(t, exists && m.Counters[tt.args.name] == Counter(tt.args.intval))
 		})
 	}
 }

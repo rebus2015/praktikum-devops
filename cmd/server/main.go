@@ -12,15 +12,7 @@ import (
 func main() {
 	s := storage.MemStorage{}
 	s.Init()
-	handlers.MemStats = s
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/", handlers.ErrorHandleFunc)
-	mux.HandleFunc("/update/counter", handlers.UpdateCounterHandlerFunc)
-	mux.HandleFunc("/update/gauge", handlers.UpdateGaugeHandlerFunc)
-	// конструируем свой сервер
-	server := &http.Server{
-		Addr:    "127.0.0.1:8080",
-		Handler: mux,
-	}
-	log.Fatal(server.ListenAndServe())
+	handlers.MemStats = &s
+	r := handlers.NewRouter()
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
