@@ -12,7 +12,7 @@ import (
 func main() {
 	s := storage.MemStorage{}
 	s.Init()
-	handlers.MemStats = &s
+	handlers.MemStats = s
 	r := handlers.NewRouter()
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
