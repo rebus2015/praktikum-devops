@@ -48,12 +48,8 @@ func NewRouter() chi.Router {
 	r.Get("/", getAllHandler)
 
 	r.Route("/update", func(r chi.Router) {
-		r.Route("/counter/{name}/{val}", func(r chi.Router) {
-			r.Post("/", UpdateCounterHandlerFunc)
-		})
-		r.Route("/gauge/{name}/{val}", func(r chi.Router) {
-			r.Post("/", UpdateGaugeHandlerFunc)
-
+		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
+			r.Post("/", UpdateMetricHandlerFunc)
 		})
 	})
 
@@ -66,27 +62,28 @@ func NewRouter() chi.Router {
 	return r
 }
 
-// HelloWorld — обработчик запроса.
-func UpdateCounterHandlerFunc(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	mtype := chi.URLParam(r, "mtype")
 	name := chi.URLParam(r, "name")
 	val := chi.URLParam(r, "val")
-	err := MemStats.AddCounter(name, val)
+	var err error
+	switch mtype {
+	case "gauge":
+		err = MemStats.AddGauge(name, val)
+	case "counter":
+		err = MemStats.AddCounter(name, val)
+	default:
+		{
+			http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
+			return
+		}
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest) //400
 	}
 	// устанавливаем статус-код 200
 	w.WriteHeader(http.StatusOK)
-}
 
-func UpdateGaugeHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
-	val := chi.URLParam(r, "val")
-	err := MemStats.AddGauge(name, val)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest) //400
-	}
-	// устанавливаем статус-код 200
-	w.WriteHeader(http.StatusOK)
 }
 
 func getMetricHandlerFunc(w http.ResponseWriter, r *http.Request) {
