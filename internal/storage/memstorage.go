@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 )
 
@@ -19,7 +18,6 @@ func (c CMetric) String() string {
 func (c *CMetric) TryParse(cname string, cval string) error {
 	v, err := strconv.ParseInt(cval, 10, 64)
 	if err != nil {
-		log.Panic(err)
 		return err
 	}
 	c.Name = cname
@@ -29,7 +27,6 @@ func (c *CMetric) TryParse(cname string, cval string) error {
 func (g *GMetric) TryParse(gname string, gval string) error {
 	v, err := strconv.ParseFloat(gval, 64)
 	if err != nil {
-		log.Panic(err)
 		return err
 	}
 	g.Name = gname
@@ -83,7 +80,6 @@ func (m *MemStorage) AddGauge(name string, val string) error {
 	g := GMetric{}
 	err := g.TryParse(name, val)
 	if err != nil {
-		log.Panic("gauge handler panic: value parse failed!")
 		return err
 	}
 	m.Gauges[g.Name] = g.Val

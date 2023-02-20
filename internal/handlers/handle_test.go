@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -48,6 +49,8 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
+	MemStats = new(storage.MemStorage)
+	MemStats.Init()
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,6 +105,10 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
+
+	MemStats = new(storage.MemStorage)
+	MemStats.Init()
+
 	for _, tt := range tests {
 
 		// запускаем каждый тест
@@ -113,6 +120,52 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 			statusCode, _ := testRequest(t, ts, tt.method, tt.request)
 			// проверяем код ответа
 			assert.Equal(t, tt.args.code, statusCode)
+
+		})
+	}
+}
+
+func Test_getAllHandler(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		counters []storage.MetricStr
+		gauges   []storage.MetricStr
+		method   string
+		wantcode int
+		path     string
+	}{
+		{
+			name:     "Positive test #1",
+			counters: []storage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
+			gauges:   []storage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
+			method:   http.MethodGet,
+			wantcode: http.StatusOK,
+			path: "/",
+		},
+	}
+
+	for _, tt := range tests {
+
+		MemStats = new(storage.MemStorage)
+		MemStats.Init()
+		for _, c := range tt.counters {
+			MemStats.AddCounter(c.Name, c.Val)
+		}
+
+		for _, g := range tt.gauges {
+			MemStats.AddGauge(g.Name, g.Val)
+		}
+
+		// запускаем каждый тест
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter()
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequest(t, ts, tt.method, tt.path)
+			// проверяем код ответа
+			assert.Equal(t, tt.wantcode, statusCode)
 
 		})
 	}

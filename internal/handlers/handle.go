@@ -9,7 +9,12 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
 
-var MemStats storage.MemStorage
+var MemStats storage.Repository
+
+func CreateRepository() {
+	MemStats = new(storage.MemStorage)
+	MemStats.Init()
+}
 
 const templ = `{{define "metrics"}}
 <!doctype html>
@@ -60,11 +65,6 @@ func NewRouter() chi.Router {
 
 	return r
 }
-
-// func UpdateUnkHandlerFunc(w http.ResponseWriter, r *http.Request) {
-// 	w.WriteHeader(http.StatusNotImplemented) //501
-// 	w.Write([]byte("Unknown metric type"))
-// }
 
 // HelloWorld — обработчик запроса.
 func UpdateCounterHandlerFunc(w http.ResponseWriter, r *http.Request) {
@@ -124,24 +124,18 @@ func getMetricHandlerFunc(w http.ResponseWriter, r *http.Request) {
 func getAllHandler(w http.ResponseWriter, r *http.Request) {
 	metrics, err := MemStats.GetView()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError) //500
 		return
 	}
 	template, err := template.New("metrics").Parse(templ)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest) // 400
 		return
 	}
 
 	err = template.ExecuteTemplate(w, "metrics", metrics)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError) //500
 		return
 	}
 }
-
-// func ErrorHandleFunc(w http.ResponseWriter, r *http.Request) {
-// 	w.WriteHeader(http.StatusNotFound)
-// 	w.Write([]byte("Wrong url path, metric type not found!"))
-// 	http.NotFound(w, r)
-// }
