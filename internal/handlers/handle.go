@@ -59,6 +59,7 @@ func UpdateGaugeHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 	}
+
 	MemStats.AddGauge(g)
 	// устанавливаем статус-код 200
 	w.WriteHeader(http.StatusOK)
