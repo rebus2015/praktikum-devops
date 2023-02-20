@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -24,16 +23,15 @@ func UpdateCounterHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := strings.Split(r.URL.Path, "/")
-	if len(data) != 5 {
-		http.Error(w, fmt.Sprintf("counter handler panic: url path wrong format %v", data), http.StatusNotImplemented)
+	if len(data) < 5 {
+		http.Error(w, fmt.Sprintf("counter handler panic: url path wrong format %v", data), http.StatusNotFound)
 		return
 	}
+
 	c := storage.CMetric{}
 	err := c.TryParse(data[3], data[4])
 	if err != nil {
-		log.Panic(err.Error())
-		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
-
+		http.Error(w, err.Error(), 400)
 	}
 	MemStats.AddCounter(c)
 	// устанавливаем статус-код 200
@@ -51,14 +49,15 @@ func UpdateGaugeHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data = strings.Split(r.URL.Path, "/")
-	if len(data) != 5 {
-		http.Error(w, "counter handler panic: url path wrong format", http.StatusNotImplemented)
+	if len(data) < 5 {
+		http.Error(w, fmt.Sprintf("gauge handler panic: url path wrong format %v", data), http.StatusNotFound)
 		return
 	}
+
 	g := storage.GMetric{}
 	err := g.TryParse(data[3], data[4])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusMethodNotAllowed)
+		http.Error(w, err.Error(), 400)
 	}
 	MemStats.AddGauge(g)
 	// устанавливаем статус-код 200
