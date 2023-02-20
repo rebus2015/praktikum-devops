@@ -29,6 +29,24 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			method:      http.MethodPost,
 			contentType: "text/plain",
 		},
+		{
+			name: "negative test #2",
+			args: want{
+				code: 400,
+			},
+			request:     "/update/counter/cnt/test",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+		},
+		{
+			name: "negative test #2",
+			args: want{
+				code: 404,
+			},
+			request:     "/update/counter/",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+		},
 	}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -62,6 +80,24 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 				code: 200,
 			},
 			request:     "/update/gauge/gg/3",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+		},
+		{
+			name: "negative test #2",
+			args: want{
+				code: 404,
+			},
+			request:     "/update/gauge/",
+			method:      http.MethodPost,
+			contentType: "text/plain",
+		},
+		{
+			name: "negative test #3",
+			args: want{
+				code: 400,
+			},
+			request:     "/update/gauge/gg/xx",
 			method:      http.MethodPost,
 			contentType: "text/plain",
 		},

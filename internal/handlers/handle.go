@@ -9,7 +9,7 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
 
-var MemStats storage.Repository
+var MemStats storage.MemStorage
 
 const templ = `{{define "metrics"}}
 <!doctype html>
@@ -61,13 +61,18 @@ func NewRouter() chi.Router {
 	return r
 }
 
+// func UpdateUnkHandlerFunc(w http.ResponseWriter, r *http.Request) {
+// 	w.WriteHeader(http.StatusNotImplemented) //501
+// 	w.Write([]byte("Unknown metric type"))
+// }
+
 // HelloWorld — обработчик запроса.
 func UpdateCounterHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	val := chi.URLParam(r, "val")
 	err := MemStats.AddCounter(name, val)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest) //400
 	}
 	// устанавливаем статус-код 200
 	w.WriteHeader(http.StatusOK)
@@ -78,7 +83,7 @@ func UpdateGaugeHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	val := chi.URLParam(r, "val")
 	err := MemStats.AddGauge(name, val)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest) //400
 	}
 	// устанавливаем статус-код 200
 	w.WriteHeader(http.StatusOK)
@@ -102,18 +107,14 @@ func getMetricHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		{
-			w.WriteHeader(http.StatusMisdirectedRequest)
-			w.Write([]byte("Bad metric type"))
+			w.WriteHeader(http.StatusNotImplemented)
+			w.Write([]byte("Unknown metric type"))
 		}
 	}
 
 	if err != nil {
-		if val == "404" {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(err.Error()))
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
