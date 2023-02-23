@@ -31,7 +31,7 @@ func (c counter) String() string {
 type metricset struct {
 	gauges    map[string]gauge
 	PollCount counter
-	sync.Mutex
+	sync.RWMutex
 }
 
 func (m *metricset) Declare() {
@@ -173,9 +173,9 @@ func main() {
 			}
 		case s := <-sndticker.C:
 			{
-				m.Lock()
+
 				client := &http.Client{}
-				m.Lock()
+				m.RLock()
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
 					sendreq(
@@ -184,7 +184,7 @@ func main() {
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String()).URL)
 					fmt.Println("")
 				}
-
+				m.RUnlock()
 				//отправляем статистику counter
 				sendreq(
 					makereq(reflect.TypeOf(m.PollCount).Name(),
@@ -194,6 +194,7 @@ func main() {
 					makereq(reflect.TypeOf(m.PollCount).Name(),
 						"PollCount", m.PollCount.String()))
 				fmt.Println("")
+				m.Lock()
 				m.PollCount = 0
 				m.Unlock()
 			}
