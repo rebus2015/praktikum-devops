@@ -49,12 +49,11 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	MemStats = new(storage.MemStorage)
-	MemStats.Init()
+	metricStorage := CreateRepository()
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter()
+			r := NewRouter(metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -106,14 +105,13 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	MemStats = new(storage.MemStorage)
-	MemStats.Init()
+	metricStorage := CreateRepository()
 
 	for _, tt := range tests {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter()
+			r := NewRouter(metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -147,19 +145,18 @@ func Test_getAllHandler(t *testing.T) {
 
 	for _, tt := range tests {
 
-		MemStats = new(storage.MemStorage)
-		MemStats.Init()
+		metricStorage:=CreateRepository()
 		for _, c := range tt.counters {
-			MemStats.AddCounter(c.Name, c.Val)
+			metricStorage.AddCounter(c.Name, c.Val)
 		}
 
 		for _, g := range tt.gauges {
-			MemStats.AddGauge(g.Name, g.Val)
+			metricStorage.AddGauge(g.Name, g.Val)
 		}
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter()
+			r := NewRouter(metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
