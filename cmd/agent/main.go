@@ -11,9 +11,9 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
-	//"os"
 )
 
 type gauge float64
@@ -31,17 +31,8 @@ func (c counter) String() string {
 type metricset struct {
 	gauges    map[string]gauge
 	PollCount counter
+	sync.Mutex
 }
-
-// type metrics struct{
-// 	mlist []t
-// }
-
-// type t struct{
-// 	name string
-// 	typename string
-// 	value Stringer
-// }
 
 func (m *metricset) Declare() {
 	m.PollCount = 0
@@ -81,7 +72,8 @@ func (m *metricset) Update() {
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-
+	m.Lock()
+	defer m.Unlock()
 	m.PollCount++
 
 	m.gauges["Alloc"] = gauge(ms.Alloc)
@@ -154,8 +146,6 @@ const hostip string = "127.0.0.1:8080"
 const pollinterval time.Duration = 2 * time.Second
 const reportintelval time.Duration = 10 * time.Second
 
-//const endpoint string := "http://localhost:8080/"
-
 func main() {
 
 	m := metricset{}
@@ -183,7 +173,9 @@ func main() {
 			}
 		case s := <-sndticker.C:
 			{
+				m.Lock()
 				client := &http.Client{}
+				m.Lock()
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
 					sendreq(
@@ -198,9 +190,12 @@ func main() {
 					makereq(reflect.TypeOf(m.PollCount).Name(),
 						"PollCount",
 						m.PollCount.String()), client)
-				fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(m.PollCount).Name(), "PollCount", m.PollCount.String()))
+				fmt.Printf("%v %v Send Statistic", s,
+					makereq(reflect.TypeOf(m.PollCount).Name(),
+						"PollCount", m.PollCount.String()))
 				fmt.Println("")
 				m.PollCount = 0
+				m.Unlock()
 			}
 		case q := <-sigChan:
 			{

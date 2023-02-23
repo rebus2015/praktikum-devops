@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 )
 
 func (g GMetric) String() string {
@@ -54,6 +55,7 @@ type CMetric struct {
 type MemStorage struct {
 	Gauges   map[string]Gauge
 	Counters map[string]Counter
+	sync.RWMutex
 }
 
 type Repository interface {
@@ -82,9 +84,10 @@ func (m *MemStorage) AddGauge(name string, val string) error {
 	if err != nil {
 		return err
 	}
+	m.Lock()
+	defer m.Unlock()
 	m.Gauges[g.Name] = g.Val
 	return nil
-
 }
 
 func (m *MemStorage) AddCounter(name string, val string) error {
@@ -99,7 +102,8 @@ func (m *MemStorage) AddCounter(name string, val string) error {
 	if err != nil {
 		return err
 	}
-
+	m.Lock()
+	defer m.Unlock()
 	if _, ok := m.Counters[c.Name]; !ok {
 		m.Counters[c.Name] = c.Val
 		return nil
@@ -115,7 +119,8 @@ func (m *MemStorage) GetCounter(name string) (string, error) {
 	if m.Counters == nil {
 		return "", errors.New("m.Counters map[string]counter is nil")
 	}
-
+	m.RLock()
+	defer m.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
 		return "", fmt.Errorf("Counter with name %v is not found", name)
 	}
@@ -129,7 +134,8 @@ func (m *MemStorage) GetGauge(name string) (string, error) {
 	if m.Gauges == nil {
 		return "", errors.New("m.Counters map[string]counter is nil")
 	}
-
+	m.RLock()
+	defer m.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
 		return "", fmt.Errorf("Gauge with name %v is not found", name)
 	}
@@ -137,6 +143,8 @@ func (m *MemStorage) GetGauge(name string) (string, error) {
 }
 
 func (m *MemStorage) GetView() ([]MetricStr, error) {
+	m.RLock()
+	defer m.RUnlock()
 	view := []MetricStr{}
 	for key, val := range m.Counters {
 		view = append(view, MetricStr{key, fmt.Sprintf("%v", val)})
