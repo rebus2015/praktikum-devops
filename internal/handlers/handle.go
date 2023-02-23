@@ -125,7 +125,8 @@ func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 }
 
 func getAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
+
 		metrics, err := metricStorage.GetView()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError) //500
