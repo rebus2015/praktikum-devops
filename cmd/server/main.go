@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	handlers.CreateRepository()
-	r := handlers.NewRouter()
+	storage:= handlers.CreateRepository()
+	r := handlers.NewRouter(storage)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
