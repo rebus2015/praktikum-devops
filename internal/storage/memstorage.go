@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -52,14 +51,25 @@ type CMetric struct {
 	Val  Counter
 }
 
-type MemStorage struct {
+type memStorage struct {
 	Gauges   map[string]Gauge
 	Counters map[string]Counter
 	sync.RWMutex
 }
 
-type Repository interface {
-	Init()
+func CreateRepository() Repository {
+	return newStorage()
+}
+
+func newStorage() *memStorage{
+	return &memStorage{
+		map[string]Gauge{},
+		map[string]Counter{},
+		sync.RWMutex{},
+	}
+}
+
+type Repository interface {	
 	AddGauge(name string, val string) error
 	AddCounter(name string, val string) error
 	GetCounter(name string) (string, error)
@@ -67,18 +77,12 @@ type Repository interface {
 	GetView() ([]MetricStr, error)
 }
 
-func (m *MemStorage) Init() {
+func (m *memStorage) Init() {
 	m.Gauges = make(map[string]Gauge)
 	m.Counters = make(map[string]Counter)
 }
 
-func (m *MemStorage) AddGauge(name string, val string) error {
-	if m == nil {
-		return errors.New("m *MemStorage is nil. Init it first")
-	}
-	if m.Gauges == nil {
-		return errors.New("m.Gauges map[string]gauge is nil")
-	}
+func (m *memStorage) AddGauge(name string, val string) error {
 	g := GMetric{}
 	err := g.TryParse(name, val)
 	if err != nil {
@@ -90,13 +94,7 @@ func (m *MemStorage) AddGauge(name string, val string) error {
 	return nil
 }
 
-func (m *MemStorage) AddCounter(name string, val string) error {
-	if m == nil {
-		return errors.New("m *MemStorage is nil. Init it first")
-	}
-	if m.Counters == nil {
-		return errors.New("m.Counters map[string]counter is nil")
-	}
+func (m *memStorage) AddCounter(name string, val string) error {
 	c := CMetric{}
 	err := c.TryParse(name, val)
 	if err != nil {
@@ -112,13 +110,7 @@ func (m *MemStorage) AddCounter(name string, val string) error {
 	return nil
 }
 
-func (m *MemStorage) GetCounter(name string) (string, error) {
-	if m == nil {
-		return "", errors.New("m *MemStorage is nil. Init it first")
-	}
-	if m.Counters == nil {
-		return "", errors.New("m.Counters map[string]counter is nil")
-	}
+func (m *memStorage) GetCounter(name string) (string, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
@@ -127,13 +119,7 @@ func (m *MemStorage) GetCounter(name string) (string, error) {
 	return fmt.Sprintf("%v", int64(m.Counters[name])), nil
 }
 
-func (m *MemStorage) GetGauge(name string) (string, error) {
-	if m == nil {
-		return "", errors.New("m *MemStorage is nil. Init it first")
-	}
-	if m.Gauges == nil {
-		return "", errors.New("m.Counters map[string]counter is nil")
-	}
+func (m *memStorage) GetGauge(name string) (string, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
@@ -142,7 +128,7 @@ func (m *MemStorage) GetGauge(name string) (string, error) {
 	return fmt.Sprintf("%v", float64(m.Gauges[name])), nil
 }
 
-func (m *MemStorage) GetView() ([]MetricStr, error) {
+func (m *memStorage) GetView() ([]MetricStr, error) {
 	m.RLock()
 	defer m.RUnlock()
 	view := []MetricStr{}
