@@ -10,13 +10,6 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
 
-//var MemStats storage.Repository
-
-func CreateRepository() storage.Repository {
-	var MemStats = new(storage.MemStorage)
-	MemStats.Init()
-	return MemStats
-}
 
 const templ = `{{define "metrics"}}
 <!doctype html>
@@ -39,7 +32,7 @@ const templ = `{{define "metrics"}}
 </html>
 {{end}}`
 
-func NewRouter(MetricStorage storage.Repository) chi.Router {
+func NewRouter(metricStorage storage.Repository) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -47,17 +40,17 @@ func NewRouter(MetricStorage storage.Repository) chi.Router {
 	//r.Use(middleware.AllowContentType("plain/text"))
 	r.Use(middleware.Recoverer)
 
-	r.Get("/", getAllHandler(MetricStorage))
+	r.Get("/", getAllHandler(metricStorage))
 
 	r.Route("/update", func(r chi.Router) {
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
-			r.Post("/", UpdateMetricHandlerFunc(MetricStorage))
+			r.Post("/", UpdateMetricHandlerFunc(metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
-			r.Get("/", getMetricHandlerFunc(MetricStorage))
+			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
 	})
 

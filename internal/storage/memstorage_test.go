@@ -132,10 +132,7 @@ func TestMemStorage_AddGauge(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &MemStorage{
-				Gauges:   tt.r.Gauges,
-				Counters: tt.r.Counters,
-			}
+			m := newStorage()
 			m.AddGauge(tt.args.name, tt.args.val)
 			_, exists := m.Gauges[tt.args.name]
 			assert.True(t, exists && m.Gauges[tt.args.name] == Gauge(tt.args.floatval))
@@ -169,10 +166,9 @@ func TestMemStorage_AddCounter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &MemStorage{
-				Gauges:   tt.r.Gauges,
-				Counters: tt.r.Counters,
-			}
+			m := newStorage()
+			m.Counters = tt.r.Counters
+			m.Gauges = tt.r.Gauges
 			m.AddCounter(tt.args.name, tt.args.val)
 			_, exists := m.Counters[tt.args.name]
 			assert.True(t, exists && m.Counters[tt.args.name] == Counter(tt.args.intval))

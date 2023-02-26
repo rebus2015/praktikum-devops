@@ -49,7 +49,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	metricStorage := CreateRepository()
+	metricStorage := storage.CreateRepository()
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,7 +105,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := CreateRepository()
+	metricStorage := storage.CreateRepository()
 
 	for _, tt := range tests {
 
@@ -145,7 +145,7 @@ func Test_getAllHandler(t *testing.T) {
 
 	for _, tt := range tests {
 
-		metricStorage:=CreateRepository()
+		metricStorage:=storage.CreateRepository()
 		for _, c := range tt.counters {
 			metricStorage.AddCounter(c.Name, c.Val)
 		}

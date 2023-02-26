@@ -6,10 +6,11 @@ import (
 	"net/http"
 
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
+	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
 
 func main() {
-	storage:= handlers.CreateRepository()
+	storage:= storage.CreateRepository()
 	r := handlers.NewRouter(storage)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
