@@ -139,13 +139,13 @@ func Test_getAllHandler(t *testing.T) {
 			gauges:   []storage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
 			method:   http.MethodGet,
 			wantcode: http.StatusOK,
-			path: "/",
+			path:     "/",
 		},
 	}
 
 	for _, tt := range tests {
 
-		metricStorage:=storage.CreateRepository()
+		metricStorage := storage.CreateRepository()
 		for _, c := range tt.counters {
 			metricStorage.AddCounter(c.Name, c.Val)
 		}

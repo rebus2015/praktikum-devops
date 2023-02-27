@@ -1,18 +1,45 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+
+	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
+func Ptr[T any](v T) *T {
+	return &v
+}
 func (g GMetric) String() string {
 	x := fmt.Sprintf("%v", float64(g.Val))
 	return x
 }
+
 func (c CMetric) String() string {
 	x := fmt.Sprintf("%v", int64(c.Val))
 	return x
+}
+
+func (g *GMetric) Metric() *model.Metrics {
+	m := model.Metrics{
+		ID:    g.Name,
+		MType: "gauge",
+		Delta: new(int64),
+		Value: Ptr(float64(g.Val)),
+	}
+	return &m
+}
+
+func (c *CMetric) Metric() *model.Metrics {
+	m := model.Metrics{
+		ID:    c.Name,
+		MType: "counter",
+		Delta: Ptr(int64(c.Val)),
+		Value: new(float64),
+	}
+	return &m
 }
 
 func (c *CMetric) TryParse(cname string, cval string) error {
@@ -21,7 +48,7 @@ func (c *CMetric) TryParse(cname string, cval string) error {
 		return err
 	}
 	c.Name = cname
-	c.Val = Counter(v)
+	c.Val = v
 	return nil
 }
 func (g *GMetric) TryParse(gname string, gval string) error {
@@ -30,12 +57,10 @@ func (g *GMetric) TryParse(gname string, gval string) error {
 		return err
 	}
 	g.Name = gname
-	g.Val = Gauge(v)
+	g.Val = v
 	return nil
 }
 
-type Gauge float64
-type Counter int64
 type MetricStr struct {
 	Name string
 	Val  string
@@ -43,17 +68,17 @@ type MetricStr struct {
 
 type GMetric struct {
 	Name string
-	Val  Gauge
+	Val  float64
 }
 
 type CMetric struct {
 	Name string
-	Val  Counter
+	Val  int64
 }
 
 type memStorage struct {
-	Gauges   map[string]Gauge
-	Counters map[string]Counter
+	Gauges   map[string]float64
+	Counters map[string]int64
 	sync.RWMutex
 }
 
@@ -61,71 +86,128 @@ func CreateRepository() Repository {
 	return newStorage()
 }
 
-func newStorage() *memStorage{
+func newStorage() *memStorage {
 	return &memStorage{
-		map[string]Gauge{},
-		map[string]Counter{},
+		map[string]float64{},
+		map[string]int64{},
 		sync.RWMutex{},
 	}
 }
 
-type Repository interface {	
-	AddGauge(name string, val string) error
-	AddCounter(name string, val string) error
+type Repository interface {
+	AddGauge(name string, val interface{}) (model.Metrics, error)
+	AddCounter(name string, val interface{}) (model.Metrics, error)
 	GetCounter(name string) (string, error)
 	GetGauge(name string) (string, error)
 	GetView() ([]MetricStr, error)
 }
 
-func (m *memStorage) Init() {
-	m.Gauges = make(map[string]Gauge)
-	m.Counters = make(map[string]Counter)
-}
+func (m *memStorage) AddGauge(name string, val interface{}) (model.Metrics, error) {
 
-func (m *memStorage) AddGauge(name string, val string) error {
 	g := GMetric{}
-	err := g.TryParse(name, val)
-	if err != nil {
-		return err
+	switch v := val.(type) {
+	case string:
+		{
+			err := g.TryParse(name, v)
+			if err != nil {
+				return model.Metrics{}, err
+			}
+		}
+	case *float64:
+		{
+			g.Name = name
+			g.Val = *v
+		}
+	default:
+		return model.Metrics{}, errors.New("unexpected gauge value")
+
 	}
+
 	m.Lock()
 	defer m.Unlock()
 	m.Gauges[g.Name] = g.Val
-	return nil
+	return *g.Metric(), nil
 }
 
-func (m *memStorage) AddCounter(name string, val string) error {
+func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, error) {
 	c := CMetric{}
-	err := c.TryParse(name, val)
-	if err != nil {
-		return err
+	switch v := val.(type) {
+	case string:
+		{
+			err := c.TryParse(name, v)
+			if err != nil {
+				return model.Metrics{}, err
+			}
+		}
+	case *int64:
+		{
+			c.Name = name
+			c.Val = *v
+		}
+	default:
+		return model.Metrics{}, errors.New("unexpected counter value")
+
 	}
 	m.Lock()
 	defer m.Unlock()
 	if _, ok := m.Counters[c.Name]; !ok {
 		m.Counters[c.Name] = c.Val
-		return nil
+	} else {
+		m.Counters[c.Name] = m.Counters[c.Name] + c.Val
+		c.Val = m.Counters[c.Name]
 	}
-	m.Counters[c.Name] = m.Counters[c.Name] + c.Val
-	return nil
+	return *c.Metric(), nil
 }
 
+// TODO: change retrurn value to native, use convert after call when necessery
 func (m *memStorage) GetCounter(name string) (string, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
-		return "", fmt.Errorf("Counter with name %v is not found", name)
+		return "", fmt.Errorf("%v: Counter with name is not found", name)
 	}
 	return fmt.Sprintf("%v", int64(m.Counters[name])), nil
 }
 
+// TODO: change retrurn value to native, use convert after call when necessery
 func (m *memStorage) GetGauge(name string) (string, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
-		return "", fmt.Errorf("Gauge with name %v is not found", name)
+		return "", fmt.Errorf("%v: Gauge with name is not found", name)
 	}
 	return fmt.Sprintf("%v", float64(m.Gauges[name])), nil
+}
+
+func (m *memStorage) FillMetric(data *model.Metrics) error {
+	m.RLock()
+	defer m.RUnlock()
+	switch data.MType {
+	case "counter":
+		{
+			if v, ok := m.Counters[data.ID]; ok {
+				data.Delta = Ptr(int64(v))
+				break
+			}
+			return fmt.Errorf("%v: Counter with name is not found", data.ID)
+
+		}
+	case "gauge":
+		{
+			if v, ok := m.Gauges[data.ID]; ok {
+				data.Value = Ptr(float64(v))
+				break
+			}
+			return fmt.Errorf("%v: Gauge with name is not found", data.ID)
+
+		}
+	default:
+		{
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (m *memStorage) GetView() ([]MetricStr, error) {

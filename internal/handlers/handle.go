@@ -1,15 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
-
 
 const templ = `{{define "metrics"}}
 <!doctype html>
@@ -43,12 +45,14 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	r.Get("/", getAllHandler(metricStorage))
 
 	r.Route("/update", func(r chi.Router) {
+		r.Post("/", UpdateJsonMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
+		r.Get("/", getJsonMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
@@ -57,6 +61,46 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	return r
 }
 
+func UpdateJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ct := r.Header.Get("Content-Type")
+		if ct != "application/json" {
+			http.Error(w, "not valid content-type", http.StatusUnsupportedMediaType)
+		}
+		var data model.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		var err error
+		var metric model.Metrics
+		mtype := data.MType
+		name := data.ID
+
+		switch mtype {
+		case "gauge":
+			metric, err = metricStorage.AddGauge(name, data.Value)
+		case "counter":
+			metric, err = metricStorage.AddCounter(name, data.Delta)
+		default:
+			{
+				http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
+				return
+			}
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest) //400
+		}
+		w.Header().Add("content-type", "application/json")
+		if err := json.NewEncoder(w).Encode(&metric); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Println("New JSON Post message came!")
+	}
+}
 func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtype := chi.URLParam(r, "mtype")
@@ -65,9 +109,9 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 		var err error
 		switch mtype {
 		case "gauge":
-			err = metricStorage.AddGauge(name, val)
+			_, err = metricStorage.AddGauge(name, val)
 		case "counter":
-			err = metricStorage.AddCounter(name, val)
+			_, err = metricStorage.AddCounter(name, val)
 		default:
 			{
 				http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
@@ -83,6 +127,12 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
+func getJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("New JSON Get message came!")
+
+	}
+}
 func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")
