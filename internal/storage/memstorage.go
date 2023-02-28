@@ -200,7 +200,6 @@ func (m *memStorage) FillMetric(data *model.Metrics) error {
 				break
 			}
 			return fmt.Errorf("%v: Gauge with name is not found", data.ID)
-
 		}
 	default:
 		{

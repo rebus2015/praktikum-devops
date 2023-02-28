@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
 type gauge float64
@@ -29,13 +33,15 @@ func (c counter) String() string {
 }
 
 type metricset struct {
-	gauges    map[string]gauge
-	PollCount counter
+	gauges   map[string]gauge
+	counters map[string]counter
 	sync.RWMutex
 }
 
 func (m *metricset) Declare() {
-	m.PollCount = 0
+	m.counters = map[string]counter{
+		"PollCount": 0,
+	}
 	m.gauges = map[string]gauge{
 		"Alloc":         0,
 		"BuckHashSys":   0,
@@ -68,13 +74,18 @@ func (m *metricset) Declare() {
 	}
 }
 
+const (
+	Gauge string = "gauge"
+	Count string = "counter"
+)
+
 func (m *metricset) Update() {
 
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 	m.Lock()
 	defer m.Unlock()
-	m.PollCount++
+	m.counters["PollCount"]++
 
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
@@ -105,10 +116,57 @@ func (m *metricset) Update() {
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
 	m.gauges["RandomValue"] = gauge(rand.Float32())
 }
+func Ptr[T any](v T) *T {
+	return &v
+}
 
+func (m *metricset) Get(mtype string, name string) *model.Metrics {
+	m.RLock()
+	defer m.RUnlock()
+	metric := model.Metrics{
+		ID:    name,
+		MType: mtype,
+	}
+	switch mtype {
+	case Gauge:
+		{
+			if v, ok := m.gauges[name]; ok {
+				metric.Value = Ptr(float64(v))
+				break
+			}
+			log.Panicf("%v: no such gauge metric", name)
+		}
+	case Count:
+		{
+			if v, ok := m.counters[name]; ok {
+				metric.Delta = Ptr(int64(v))
+				break
+			}
+			log.Panicf("%v: no such counter metric", name)
+		}
+	}
+	return &metric
+}
+func request(metric *model.Metrics) *http.Request {
+
+	queryurl := url.URL{
+		Scheme: "http",
+		Host:   hostip,
+		Path:   "update",
+	}
+	data, err := json.Marshal(metric)
+	if err != nil {
+		log.Panic(err)
+	}
+	req, err := http.NewRequest(http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
+	if err != nil {
+		log.Panicf("Create Request failed! with error: %v", err)
+	}
+	req.Header.Add("content-type", "application/json")
+
+	return req
+}
 func makereq(typename string, name string, val string) *http.Request {
-	//TODO дописать возврат запроса и формирование URL
-	//http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	path, err := url.JoinPath(
 		"update",
 		typename,
@@ -175,28 +233,24 @@ func main() {
 			{
 
 				client := &http.Client{}
-				m.RLock()
+
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					sendreq(
-						makereq(reflect.TypeOf(v).Name(), g, v.String()),
-						client)
+					sendreq(request(m.Get(Gauge, g)), client)
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String()).URL)
 					fmt.Println("")
 				}
-				m.RUnlock()
+
 				//отправляем статистику counter
-				sendreq(
-					makereq(reflect.TypeOf(m.PollCount).Name(),
-						"PollCount",
-						m.PollCount.String()), client)
-				fmt.Printf("%v %v Send Statistic", s,
-					makereq(reflect.TypeOf(m.PollCount).Name(),
-						"PollCount", m.PollCount.String()))
-				fmt.Println("")
-				m.Lock()
-				m.PollCount = 0
-				m.Unlock()
+				for c, v := range m.counters {
+					sendreq(request(m.Get(Count, c)), client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String()).URL)
+					fmt.Println("")
+					m.Lock()
+					m.counters[c] = 0
+					m.Unlock()
+				}
+
 			}
 		case q := <-sigChan:
 			{
