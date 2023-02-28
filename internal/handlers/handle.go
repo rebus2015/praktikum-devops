@@ -129,8 +129,33 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 
 func getJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("New JSON Get message came!")
 
+		ct := r.Header.Get("Content-Type")
+		if ct != "application/json" {
+			http.Error(w, "not valid content-type", http.StatusUnsupportedMediaType)
+		}
+
+		var metric model.Metrics
+
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err := metricStorage.FillMetric(&metric)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest) //400
+		}
+
+		w.Header().Add("content-type", "application/json")
+		if err := json.NewEncoder(w).Encode(&metric); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Println("New JSON Get message came!")
 	}
 }
 func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
@@ -139,16 +164,28 @@ func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 		mtype := chi.URLParam(r, "mtype")
 
 		var val string
-		var err error
 
 		switch mtype {
 		case "gauge":
 			{
-				val, err = metricStorage.GetGauge(name)
+
+				g, err := metricStorage.GetGauge(name)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				val = fmt.Sprintf("%v", g)
 			}
 		case "counter":
 			{
-				val, err = metricStorage.GetCounter(name)
+				c, err := metricStorage.GetCounter(name)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				val = fmt.Sprintf("%v", c)
 			}
 		default:
 			{
@@ -157,11 +194,6 @@ func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 			}
 		}
 
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(err.Error()))
-			return
-		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(val))
 	}

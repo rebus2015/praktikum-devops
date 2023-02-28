@@ -97,8 +97,9 @@ func newStorage() *memStorage {
 type Repository interface {
 	AddGauge(name string, val interface{}) (model.Metrics, error)
 	AddCounter(name string, val interface{}) (model.Metrics, error)
-	GetCounter(name string) (string, error)
-	GetGauge(name string) (string, error)
+	GetCounter(name string) (int64, error)
+	GetGauge(name string) (float64, error)
+	FillMetric(data *model.Metrics) error
 	GetView() ([]MetricStr, error)
 }
 
@@ -160,23 +161,23 @@ func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, er
 }
 
 // TODO: change retrurn value to native, use convert after call when necessery
-func (m *memStorage) GetCounter(name string) (string, error) {
+func (m *memStorage) GetCounter(name string) (int64, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
-		return "", fmt.Errorf("%v: Counter with name is not found", name)
+		return 0, fmt.Errorf("%v: Counter with name is not found", name)
 	}
-	return fmt.Sprintf("%v", int64(m.Counters[name])), nil
+	return m.Counters[name], nil
 }
 
 // TODO: change retrurn value to native, use convert after call when necessery
-func (m *memStorage) GetGauge(name string) (string, error) {
+func (m *memStorage) GetGauge(name string) (float64, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
-		return "", fmt.Errorf("%v: Gauge with name is not found", name)
+		return 0, fmt.Errorf("%v: Gauge with name is not found", name)
 	}
-	return fmt.Sprintf("%v", float64(m.Gauges[name])), nil
+	return m.Gauges[name], nil
 }
 
 func (m *memStorage) FillMetric(data *model.Metrics) error {
