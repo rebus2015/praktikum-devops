@@ -198,7 +198,7 @@ func sendreq(r *http.Request, c *http.Client) error {
 	}
 	defer response.Body.Close()
 	_, err1 := io.Copy(io.Discard, response.Body)
-	if err != nil {
+	if err1 != nil {
 		return err1
 	}
 	return nil
