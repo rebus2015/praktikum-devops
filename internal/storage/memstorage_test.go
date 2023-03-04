@@ -31,6 +31,7 @@ func TestGMetric_String(t *testing.T) {
 		})
 	}
 }
+
 func TestCMetric_String(t *testing.T) {
 	tests := []struct {
 		name string
@@ -103,7 +104,6 @@ func TestCMetric_TryParse(t *testing.T) {
 			assert.Equal(t, c, tt.want)
 		})
 	}
-
 }
 
 func TestMemStorage_AddGauge(t *testing.T) {
@@ -183,7 +183,7 @@ func TestMemStorage_AddCounterInt(t *testing.T) {
 	}
 	type args struct {
 		name   string
-		val    int64
+		val    *int64
 		intval int64
 	}
 	tests := []struct {
@@ -197,7 +197,7 @@ func TestMemStorage_AddCounterInt(t *testing.T) {
 				map[string]float64{"g1": -32.00023},
 				map[string]int64{"c1": 100},
 			},
-			args{name: "c1", val: 3, intval: 103},
+			args{name: "c1", val: Ptr(int64(3)), intval: 103},
 		},
 	}
 	for _, tt := range tests {

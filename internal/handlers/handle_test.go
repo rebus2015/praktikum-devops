@@ -187,7 +187,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 
 	return resp.StatusCode, string(respBody)
 }
-func testRequestJson(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, string) {
+func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, string) {
 
 	data, err := json.Marshal(metric)
 	if err != nil {
@@ -208,7 +208,7 @@ func testRequestJson(t *testing.T, ts *httptest.Server, method, path string, met
 	return resp.StatusCode, string(respBody)
 }
 
-func Test_UpdateJsonMetricHandlerFunc(t *testing.T) {
+func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	type wantArgs struct {
 		code int
 		data *model.Metrics
@@ -262,7 +262,7 @@ func Test_UpdateJsonMetricHandlerFunc(t *testing.T) {
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
-			statusCode, _ := testRequestJson(t, ts, tt.request.method, tt.request.path, *tt.request.data)
+			statusCode, _ := testRequestJSON(t, ts, tt.request.method, tt.request.path, *tt.request.data)
 			// проверяем код ответа
 			assert.Equal(t, tt.want.code, statusCode)
 			m := model.Metrics{
@@ -285,7 +285,7 @@ func newMetricStruct(id string, t string, d int64, v float64) *model.Metrics {
 		Value: Ptr(v),
 	}
 }
-
 func Ptr[T any](v T) *T {
 	return &v
 }
+

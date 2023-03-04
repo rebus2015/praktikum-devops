@@ -45,14 +45,14 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	r.Get("/", getAllHandler(metricStorage))
 
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", UpdateJsonMetricHandlerFunc(metricStorage))
+		r.Post("/", UpdateJSONMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/", getJsonMetricHandlerFunc(metricStorage))
+		r.Get("/", getJSONMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
@@ -61,7 +61,7 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	return r
 }
 
-func UpdateJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ct := r.Header.Get("Content-Type")
 		if ct != "application/json" {
@@ -101,6 +101,7 @@ func UpdateJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		fmt.Println("New JSON Post message came!")
 	}
 }
+
 func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtype := chi.URLParam(r, "mtype")
@@ -127,7 +128,7 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
-func getJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ct := r.Header.Get("Content-Type")
@@ -158,6 +159,7 @@ func getJsonMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		fmt.Println("New JSON Get message came!")
 	}
 }
+
 func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")

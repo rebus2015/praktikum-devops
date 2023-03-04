@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rebus2015/praktikum-devops/internal/model"	
+	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
 type gauge float64
@@ -166,7 +166,7 @@ func request(metric *model.Metrics, cfg *config) *http.Request {
 
 	return req
 }
-func makereq(typename string, name string, val string,cfg *config) *http.Request {
+func makereq(typename string, name string, val string, cfg *config) *http.Request {
 	path, err := url.JoinPath(
 		"update",
 		typename,
@@ -200,18 +200,13 @@ func sendreq(r *http.Request, c *http.Client) {
 	}
 }
 
-
-
-func main(){
+func main() {
 
 	m := metricset{}
 	m.Declare()
-	cfg,err:=getConfig()
-	if(err!=nil){
-		log.Fatalf("%v",err)
-	}
+	cfg := getConfig()
 	sigChan := make(chan os.Signal, 1)
-	
+
 	signal.Notify(sigChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -238,15 +233,15 @@ func main(){
 
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					sendreq(request(m.Get(Gauge, g),cfg), client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(),cfg).URL)
+					sendreq(request(m.Get(Gauge, g), cfg), client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(), cfg).URL)
 					fmt.Println("")
 				}
 
 				//отправляем статистику counter
 				for c, v := range m.counters {
-					sendreq(request(m.Get(Count, c),cfg), client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(),cfg).URL)
+					sendreq(request(m.Get(Count, c), cfg), client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(), cfg).URL)
 					fmt.Println("")
 					m.Lock()
 					m.counters[c] = 0
