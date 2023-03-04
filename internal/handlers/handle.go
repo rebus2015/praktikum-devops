@@ -52,7 +52,7 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/", getJSONMetricHandlerFunc(metricStorage))
+		r.Post("/", getJSONMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
@@ -68,6 +68,7 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 			http.Error(w, "not valid content-type", http.StatusUnsupportedMediaType)
 		}
 		var data model.Metrics
+		w.Header().Add("content-type", "application/json")
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -91,7 +92,7 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest) //400
 		}
-		w.Header().Add("content-type", "application/json")
+
 		if err := json.NewEncoder(w).Encode(&metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -135,6 +136,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		if ct != "application/json" {
 			http.Error(w, "not valid content-type", http.StatusUnsupportedMediaType)
 		}
+		w.Header().Add("content-type", "application/json")
 
 		var metric model.Metrics
 
@@ -149,7 +151,6 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 			http.Error(w, err.Error(), http.StatusBadRequest) //400
 		}
 
-		w.Header().Add("content-type", "application/json")
 		if err := json.NewEncoder(w).Encode(&metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
