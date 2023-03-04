@@ -42,6 +42,7 @@ func (m *metricset) Declare() {
 	m.counters = map[string]counter{
 		"PollCount": 0,
 	}
+
 	m.gauges = map[string]gauge{
 		"Alloc":         0,
 		"BuckHashSys":   0,
@@ -74,10 +75,12 @@ func (m *metricset) Declare() {
 	}
 }
 
+
 const (
 	Gauge string = "gauge"
 	Count string = "counter"
 )
+
 
 func (m *metricset) Update() {
 
@@ -86,6 +89,7 @@ func (m *metricset) Update() {
 	m.Lock()
 	defer m.Unlock()
 	m.counters["PollCount"]++
+
 
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
@@ -116,6 +120,7 @@ func (m *metricset) Update() {
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
 	m.gauges["RandomValue"] = gauge(rand.Float32())
 }
+
 func Ptr[T any](v T) *T {
 	return &v
 }
@@ -167,6 +172,7 @@ func request(metric *model.Metrics, cfg *config) *http.Request {
 	return req
 }
 func makereq(typename string, name string, val string, cfg *config) *http.Request {
+
 	path, err := url.JoinPath(
 		"update",
 		typename,
@@ -200,6 +206,7 @@ func sendreq(r *http.Request, c *http.Client) {
 	}
 }
 
+
 func main() {
 
 	m := metricset{}
@@ -207,13 +214,16 @@ func main() {
 	cfg := getConfig()
 	sigChan := make(chan os.Signal, 1)
 
+
 	signal.Notify(sigChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
+
 	updticker := time.NewTicker(cfg.PollInterval)
 	sndticker := time.NewTicker(cfg.ReportInternal)
+
 
 	defer updticker.Stop()
 	defer sndticker.Stop()
@@ -247,7 +257,6 @@ func main() {
 					m.counters[c] = 0
 					m.Unlock()
 				}
-
 			}
 		case q := <-sigChan:
 			{

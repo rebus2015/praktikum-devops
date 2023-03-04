@@ -12,6 +12,7 @@ import (
 func Ptr[T any](v T) *T {
 	return &v
 }
+
 func (g GMetric) String() string {
 	x := fmt.Sprintf("%v", float64(g.Val))
 	return x
@@ -86,6 +87,7 @@ func CreateRepository() Repository {
 	return newStorage()
 }
 
+
 func newStorage() *memStorage {
 	return &memStorage{
 		map[string]float64{},
@@ -147,7 +149,6 @@ func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, er
 		}
 	default:
 		return model.Metrics{}, errors.New("unexpected counter value")
-
 	}
 	m.Lock()
 	defer m.Unlock()

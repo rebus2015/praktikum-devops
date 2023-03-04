@@ -1,6 +1,7 @@
 package handlers
 
 import (
+
 	"bytes"
 	"encoding/json"
 	"io"
@@ -145,12 +146,13 @@ func Test_getAllHandler(t *testing.T) {
 			method:   http.MethodGet,
 			wantcode: http.StatusOK,
 			path:     "/",
+
 		},
 	}
 
 	for _, tt := range tests {
-
 		metricStorage := storage.CreateRepository()
+
 		for _, c := range tt.counters {
 			metricStorage.AddCounter(c.Name, c.Val)
 		}
@@ -187,6 +189,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 
 	return resp.StatusCode, string(respBody)
 }
+
 func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, string) {
 
 	data, err := json.Marshal(metric)
