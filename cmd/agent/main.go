@@ -75,12 +75,10 @@ func (m *metricset) Declare() {
 	}
 }
 
-
 const (
 	Gauge string = "gauge"
 	Count string = "counter"
 )
-
 
 func (m *metricset) Update() {
 
@@ -89,7 +87,6 @@ func (m *metricset) Update() {
 	m.Lock()
 	defer m.Unlock()
 	m.counters["PollCount"]++
-
 
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
@@ -194,18 +191,18 @@ func makereq(typename string, name string, val string, cfg *config) *http.Reques
 	return req
 }
 
-func sendreq(r *http.Request, c *http.Client) {
+func sendreq(r *http.Request, c *http.Client) error {
 	response, err := c.Do(r)
 	if err != nil {
-		log.Panicf("Client request %v failed with error: %v", r.RequestURI, err)
+		return err
 	}
 	defer response.Body.Close()
 	_, err1 := io.Copy(io.Discard, response.Body)
 	if err != nil {
-		log.Panic(err1)
+		return err1
 	}
+	return nil
 }
-
 
 func main() {
 
@@ -214,16 +211,13 @@ func main() {
 	cfg := getConfig()
 	sigChan := make(chan os.Signal, 1)
 
-
 	signal.Notify(sigChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-
 	updticker := time.NewTicker(cfg.PollInterval)
 	sndticker := time.NewTicker(cfg.ReportInternal)
-
 
 	defer updticker.Stop()
 	defer sndticker.Stop()
@@ -243,14 +237,22 @@ func main() {
 
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					sendreq(request(m.Get(Gauge, g), cfg), client)
+					err := sendreq(request(m.Get(Gauge, g), cfg), client)
+					if err != nil {
+						fmt.Printf("Send counter Statistic: %v", err)
+						return
+					}
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(), cfg).URL)
 					fmt.Println("")
 				}
 
 				//отправляем статистику counter
 				for c, v := range m.counters {
-					sendreq(request(m.Get(Count, c), cfg), client)
+					err := sendreq(request(m.Get(Count, c), cfg), client)
+					if err != nil {
+						fmt.Printf("Send gauge Statistic: %v", err)
+						return
+					}
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(), cfg).URL)
 					fmt.Println("")
 					m.Lock()
