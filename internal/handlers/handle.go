@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
@@ -131,13 +130,12 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
-
 func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ct := r.Header.Get("Content-Type")
 		if ct != "application/json" {
-			http.Error(w, "not valid content-type", http.StatusUnsupportedMediaType)
+			http.Error(w, "not valid content-type", http.StatusBadRequest)
 		}
 		w.Header().Add("content-type", "application/json")
 
@@ -170,7 +168,7 @@ func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 		mtype := chi.URLParam(r, "mtype")
 
 		var val string
-    
+
 		switch mtype {
 		case "gauge":
 			{
