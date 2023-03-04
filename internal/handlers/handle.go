@@ -150,6 +150,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest) //400
+			return
 		}
 
 		if err := json.NewEncoder(w).Encode(&metric); err != nil {
