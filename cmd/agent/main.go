@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rebus2015/praktikum-devops/internal/model"
+	"github.com/rebus2015/praktikum-devops/internal/model"	
 )
 
 type gauge float64
@@ -147,11 +147,11 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 	}
 	return &metric
 }
-func request(metric *model.Metrics) *http.Request {
+func request(metric *model.Metrics, cfg *config) *http.Request {
 
 	queryurl := url.URL{
 		Scheme: "http",
-		Host:   hostip,
+		Host:   cfg.ServerAddress,
 		Path:   "update",
 	}
 	data, err := json.Marshal(metric)
@@ -166,7 +166,7 @@ func request(metric *model.Metrics) *http.Request {
 
 	return req
 }
-func makereq(typename string, name string, val string) *http.Request {
+func makereq(typename string, name string, val string,cfg *config) *http.Request {
 	path, err := url.JoinPath(
 		"update",
 		typename,
@@ -177,7 +177,7 @@ func makereq(typename string, name string, val string) *http.Request {
 	}
 	queryurl := url.URL{
 		Scheme: "http",
-		Host:   hostip,
+		Host:   cfg.ServerAddress,
 		Path:   path,
 	}
 	req, err := http.NewRequest(http.MethodPost, queryurl.String(), nil)
@@ -200,23 +200,25 @@ func sendreq(r *http.Request, c *http.Client) {
 	}
 }
 
-const hostip string = "127.0.0.1:8080"
-const pollinterval time.Duration = 2 * time.Second
-const reportintelval time.Duration = 10 * time.Second
 
-func main() {
+
+func main(){
 
 	m := metricset{}
 	m.Declare()
-
+	cfg,err:=getConfig()
+	if(err!=nil){
+		log.Fatalf("%v",err)
+	}
 	sigChan := make(chan os.Signal, 1)
+	
 	signal.Notify(sigChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	updticker := time.NewTicker(pollinterval)
-	sndticker := time.NewTicker(reportintelval)
+	updticker := time.NewTicker(cfg.PollInterval)
+	sndticker := time.NewTicker(cfg.ReportInternal)
 
 	defer updticker.Stop()
 	defer sndticker.Stop()
@@ -236,15 +238,15 @@ func main() {
 
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					sendreq(request(m.Get(Gauge, g)), client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String()).URL)
+					sendreq(request(m.Get(Gauge, g),cfg), client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(),cfg).URL)
 					fmt.Println("")
 				}
 
 				//отправляем статистику counter
 				for c, v := range m.counters {
-					sendreq(request(m.Get(Count, c)), client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String()).URL)
+					sendreq(request(m.Get(Count, c),cfg), client)
+					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(),cfg).URL)
 					fmt.Println("")
 					m.Lock()
 					m.counters[c] = 0

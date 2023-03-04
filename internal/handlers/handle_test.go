@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/rebus2015/praktikum-devops/internal/model"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/stretchr/testify/assert"
@@ -181,4 +186,106 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 	defer resp.Body.Close()
 
 	return resp.StatusCode, string(respBody)
+}
+func testRequestJson(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, string) {
+
+	data, err := json.Marshal(metric)
+	if err != nil {
+		log.Panic(err)
+	}
+	req, err := http.NewRequest(method, ts.URL+path, bytes.NewBuffer(data))
+	assert.NoError(t, err)
+	req.Header.Add("content-type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+
+	respBody, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	return resp.StatusCode, string(respBody)
+}
+
+func Test_UpdateJsonMetricHandlerFunc(t *testing.T) {
+	type wantArgs struct {
+		code int
+		data *model.Metrics
+	}
+	type requestArgs struct {
+		data        *model.Metrics
+		path        string
+		method      string
+		contentType string
+	}
+	tests := []struct {
+		name    string
+		want    wantArgs
+		request requestArgs
+	}{
+		{
+			name: "positive add gauge test #1",
+			want: wantArgs{
+				code: 200,
+				data: newMetricStruct("G1", "gauge", 0, 100.47),
+			},
+			request: requestArgs{
+				data:        newMetricStruct("G1", "gauge", 0, 100.47),
+				path:        "/update",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "positive add counter test #2",
+			want: wantArgs{
+				code: 200,
+				data: newMetricStruct("C1", "counter", 147, 0),
+			},
+			request: requestArgs{
+				data:        newMetricStruct("C1", "counter", 147, 0),
+				path:        "/update",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+	}
+
+	metricStorage := storage.CreateRepository()
+
+	for _, tt := range tests {
+
+		// запускаем каждый тест
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter(metricStorage)
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequestJson(t, ts, tt.request.method, tt.request.path, *tt.request.data)
+			// проверяем код ответа
+			assert.Equal(t, tt.want.code, statusCode)
+			m := model.Metrics{
+				ID:    tt.request.data.ID,
+				MType: tt.request.data.MType,
+				Delta: Ptr(int64(0)),
+				Value: Ptr(float64(0)),
+			}
+			assert.Empty(t, metricStorage.FillMetric(&m))
+			assert.NotEmpty(t, m)
+			assert.EqualValues(t, *tt.want.data, m)
+		})
+	}
+}
+func newMetricStruct(id string, t string, d int64, v float64) *model.Metrics {
+	return &model.Metrics{
+		ID:    id,
+		MType: t,
+		Delta: Ptr(d),
+		Value: Ptr(v),
+	}
+}
+
+func Ptr[T any](v T) *T {
+	return &v
 }

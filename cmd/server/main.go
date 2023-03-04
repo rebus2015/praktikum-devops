@@ -10,7 +10,12 @@ import (
 )
 
 func main() {
-	storage:= storage.CreateRepository()
+	cfg, err := getConfig()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	storage := storage.CreateRepository()
 	r := handlers.NewRouter(storage)
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }
