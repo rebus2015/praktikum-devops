@@ -239,8 +239,8 @@ func main() {
 				for g, v := range m.gauges {
 					err := sendreq(request(m.Get(Gauge, g), cfg), client)
 					if err != nil {
-						fmt.Printf("Send counter Statistic: %v", err)
-						return
+						fmt.Printf("Send gauge Statistic: %v", err)
+						continue
 					}
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(), cfg).URL)
 					fmt.Println("")
@@ -250,7 +250,7 @@ func main() {
 				for c, v := range m.counters {
 					err := sendreq(request(m.Get(Count, c), cfg), client)
 					if err != nil {
-						fmt.Printf("Send gauge Statistic: %v", err)
+						fmt.Printf("Send counter Statistic: %v", err)
 						return
 					}
 					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(), cfg).URL)
