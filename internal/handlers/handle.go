@@ -189,14 +189,14 @@ func metricContextBody(next http.Handler) http.Handler {
 		}
 		metric := &model.Metrics{}
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			switch {
-			case err == io.EOF:
+			if err == io.EOF {
 				http.Error(w, err.Error(), http.StatusNotFound)
-			case err != nil:
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
 			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
 		if metric.ID == "" {
 			http.Error(w, "metric.ID is empty", http.StatusBadRequest)
 		}
