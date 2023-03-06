@@ -103,16 +103,17 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 				return
 			}
 		}
-		if err != nil {
-			//log.Printf("updateJSONMetricHandlerFunc: update metric error: %v", err)
-			switch {
-			case err == io.EOF:
-				http.Error(w, err.Error(), http.StatusNotFound)
-			case err != nil:
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			}
+
+		//log.Printf("updateJSONMetricHandlerFunc: update metric error: %v", err)
+		switch {
+		case err == io.EOF:
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		case err != nil:
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(&metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
