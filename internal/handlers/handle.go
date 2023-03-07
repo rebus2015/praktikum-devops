@@ -59,8 +59,8 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.Use(metricContextBody)
-		r.Post("/", getJSONMetricHandlerFunc(metricStorage))
+		r.With(metricContextBody).
+		Post("/", getJSONMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
