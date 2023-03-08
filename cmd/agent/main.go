@@ -223,7 +223,7 @@ func main() {
 					if err != nil {
 						fmt.Printf("Error send gauge Statistic: %v", err)
 						fmt.Println()
-						continue
+						break
 					}
 				}
 
@@ -233,7 +233,7 @@ func main() {
 					if err != nil {
 						fmt.Printf("Error send counter Statistic: %v", err)
 						fmt.Println()
-						continue
+						break
 					}
 					m.Lock()
 					m.counters[c] = 0
