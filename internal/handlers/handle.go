@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -60,7 +59,7 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 
 	r.Route("/value", func(r chi.Router) {
 		r.With(metricContextBody).
-		Post("/", getJSONMetricHandlerFunc(metricStorage))
+			Post("/", getJSONMetricHandlerFunc(metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", getMetricHandlerFunc(metricStorage))
 		})
@@ -156,17 +155,14 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		//log.Printf("getJSONMetricHandlerFunc: %v read from context", metric)
 		err := metricStorage.FillMetric(metric)
 		if err != nil {
-			//log.Printf(" error %v metric: %v getJSONMetricHandlerFunc", err, metric)
-			log.Printf("GetJSONMetric find metric error: %v", err.Error())
+			//log.Printf("GetJSONMetric find metric error: %v", err.Error())
 			JSONError(w, err, http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(&metric); err != nil {
-			//log.Printf("Encoder exited with error: %v metric: %v", err, metric)
-			//http.Error(w, err.Error(), http.StatusBadRequest)
 			JSONError(w, err, http.StatusBadRequest)
-			log.Printf("GetJSONMetric encoder error: %v", err.Error())
+			//log.Printf("GetJSONMetric encoder error: %v", err.Error())
 			return
 		}
 
@@ -175,8 +171,8 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 }
 
 func JSONError(w http.ResponseWriter, err interface{}, code int) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", "application/json")
+	//w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(err)
 }

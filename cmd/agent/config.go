@@ -8,6 +8,7 @@ type config struct {
 	ServerAddress  string
 	ReportInternal time.Duration
 	PollInterval   time.Duration
+	GaugeList      []string
 }
 
 func getConfig() *config {

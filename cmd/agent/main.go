@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"reflect"
 	"runtime"
 	"sync"
 	"syscall"
@@ -85,9 +84,7 @@ func (m *metricset) Update() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 	m.Lock()
-	defer m.Unlock()
 	m.counters["PollCount"]++
-
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
 	m.gauges["Frees"] = gauge(ms.Frees)
@@ -116,6 +113,7 @@ func (m *metricset) Update() {
 	m.gauges["Sys"] = gauge(ms.Sys)
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
 	m.gauges["RandomValue"] = gauge(rand.Float32())
+	m.Unlock()
 }
 
 func Ptr[T any](v T) *T {
@@ -136,7 +134,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Value = Ptr(float64(v))
 				break
 			}
-			log.Panicf("%v: no such gauge metric", name)
+			//log.Printf("Client %v: no such gauge metric", name)
 		}
 	case Count:
 		{
@@ -144,11 +142,12 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Delta = Ptr(int64(v))
 				break
 			}
-			log.Panicf("%v: no such counter metric", name)
+			//log.Printf("Client %v: no such counter metric", name)
 		}
 	}
 	return &metric
 }
+
 func request(metric *model.Metrics, cfg *config) *http.Request {
 
 	queryurl := url.URL{
@@ -158,7 +157,7 @@ func request(metric *model.Metrics, cfg *config) *http.Request {
 	}
 	data, err := json.Marshal(metric)
 	if err != nil {
-		log.Panic(err)
+		log.Panicf("Error request %v",err)
 	}
 	req, err := http.NewRequest(http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
 	if err != nil {
@@ -168,28 +167,6 @@ func request(metric *model.Metrics, cfg *config) *http.Request {
 
 	return req
 }
-func makereq(typename string, name string, val string, cfg *config) *http.Request {
-
-	path, err := url.JoinPath(
-		"update",
-		typename,
-		name,
-		val)
-	if err != nil {
-		log.Panicf("Url JoinPath failed! with error: %v", err)
-	}
-	queryurl := url.URL{
-		Scheme: "http",
-		Host:   cfg.ServerAddress,
-		Path:   path,
-	}
-	req, err := http.NewRequest(http.MethodPost, queryurl.String(), nil)
-	if err != nil {
-		log.Panicf("Create Request failed! with error: %v", err)
-	}
-	req.Header.Add("Content-Type", "text/plain")
-	return req
-}
 
 func sendreq(r *http.Request, c *http.Client) error {
 	response, err := c.Do(r)
@@ -197,10 +174,14 @@ func sendreq(r *http.Request, c *http.Client) error {
 		return err
 	}
 	defer response.Body.Close()
-	_, err1 := io.Copy(io.Discard, response.Body)
+	b, err1 := io.ReadAll(response.Body)
 	if err1 != nil {
 		return err1
 	}
+	// var res *model.Metrics
+	// json.Unmarshal(b, res)
+	fmt.Printf("Client request for update metric %s", b)
+	fmt.Println()
 	return nil
 }
 
@@ -226,35 +207,34 @@ func main() {
 		select {
 		case t := <-updticker.C:
 			{
-				m.Update()
-				fmt.Printf("%v Updateed metrics", t)
+				fmt.Printf("%v Update metrics", t)
 				fmt.Println("")
+				m.Update()
 			}
 		case s := <-sndticker.C:
 			{
-
+				fmt.Printf("%v Send metrics", s)
+				fmt.Println("")
 				client := &http.Client{}
 
 				//отправляем статистику для gauge
-				for g, v := range m.gauges {
+				for g := range m.gauges {
 					err := sendreq(request(m.Get(Gauge, g), cfg), client)
 					if err != nil {
-						fmt.Printf("Send gauge Statistic: %v", err)
+						fmt.Printf("Error send gauge Statistic: %v", err)
+						fmt.Println()
 						continue
 					}
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), g, v.String(), cfg).URL)
-					fmt.Println("")
 				}
 
 				//отправляем статистику counter
-				for c, v := range m.counters {
+				for c := range m.counters {
 					err := sendreq(request(m.Get(Count, c), cfg), client)
 					if err != nil {
-						fmt.Printf("Send counter Statistic: %v", err)
-						return
+						fmt.Printf("Error send counter Statistic: %v", err)
+						fmt.Println()
+						continue
 					}
-					fmt.Printf("%v %v Send Statistic", s, makereq(reflect.TypeOf(v).Name(), c, v.String(), cfg).URL)
-					fmt.Println("")
 					m.Lock()
 					m.counters[c] = 0
 					m.Unlock()

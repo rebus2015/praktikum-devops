@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -214,12 +215,19 @@ func (m *memStorage) GetView() ([]MetricStr, error) {
 	m.RLock()
 	defer m.RUnlock()
 	view := []MetricStr{}
+	var keys []string
+	for k := range m.Gauges {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	for key, val := range m.Counters {
 		view = append(view, MetricStr{key, fmt.Sprintf("%v", val)})
 
 	}
-	for key, val := range m.Gauges {
-		view = append(view, MetricStr{key, fmt.Sprintf("%v", val)})
+	for _, key := range keys {
+		view = append(view, MetricStr{key, fmt.Sprintf("%v", m.Gauges[key])})
 	}
+
 	return view, nil
 }
