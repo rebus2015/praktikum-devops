@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+
 	"sync"
 	"syscall"
 	"time"
@@ -38,6 +40,8 @@ type metricset struct {
 }
 
 func (m *metricset) Declare() {
+	m.Lock()
+	defer m.Unlock()
 	m.counters = map[string]counter{
 		"PollCount": 0,
 	}
@@ -84,6 +88,7 @@ func (m *metricset) Update() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 	m.Lock()
+	defer m.Unlock()
 	m.counters["PollCount"]++
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
@@ -113,20 +118,57 @@ func (m *metricset) Update() {
 	m.gauges["Sys"] = gauge(ms.Sys)
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
 	m.gauges["RandomValue"] = gauge(rand.Float32())
-	m.Unlock()
+
 }
 
 func Ptr[T any](v T) *T {
 	return &v
 }
 
+func (m *metricset) flushCounter(c string) {
+	m.Lock()
+	defer m.Unlock()
+	m.counters[c] = 0
+}
+
+func (m *metricset) updateSend(cfg *config) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	client := &http.Client{}
+	//m.Lock()
+
+	//отправляем статистику для gauge
+	for g := range m.gauges {
+		gmetric := m.Get(Gauge, g)
+		err := sendreq(
+			request(ctx, gmetric, cfg), client)
+		if err != nil {
+			log.Printf("Error send gauge Statistic: %v", err)
+			return err
+		}
+	}
+
+	//отправляем статистику counter
+	for c := range m.counters {
+		cmetric := m.Get(Count, c)
+		err := sendreq(request(ctx, cmetric, cfg), client)
+		if err != nil {
+			log.Printf("Error send counter Statistic: %v", err)
+			return err
+		}
+		m.flushCounter(c)
+	}
+	return nil
+}
+
 func (m *metricset) Get(mtype string, name string) *model.Metrics {
-	m.RLock()
-	defer m.RUnlock()
 	metric := model.Metrics{
 		ID:    name,
 		MType: mtype,
 	}
+	m.RLock()
+	defer m.RUnlock()
 	switch mtype {
 	case Gauge:
 		{
@@ -134,7 +176,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Value = Ptr(float64(v))
 				break
 			}
-			//log.Printf("Client %v: no such gauge metric", name)
+			log.Printf("Client %v: no such gauge metric", name)
 		}
 	case Count:
 		{
@@ -142,13 +184,13 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Delta = Ptr(int64(v))
 				break
 			}
-			//log.Printf("Client %v: no such counter metric", name)
+			log.Printf("Client %v: no such counter metric", name)
 		}
 	}
 	return &metric
 }
 
-func request(metric *model.Metrics, cfg *config) *http.Request {
+func request(ctx context.Context, metric *model.Metrics, cfg *config) *http.Request {
 
 	queryurl := url.URL{
 		Scheme: "http",
@@ -157,13 +199,13 @@ func request(metric *model.Metrics, cfg *config) *http.Request {
 	}
 	data, err := json.Marshal(metric)
 	if err != nil {
-		log.Panicf("Error request %v",err)
+		log.Panicf("Error request %v", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
 	if err != nil {
 		log.Panicf("Create Request failed! with error: %v", err)
 	}
-	req.Header.Add("content-type", "application/json")
+	req.Header.Add("Content-type", "application/json")
 
 	return req
 }
@@ -178,8 +220,7 @@ func sendreq(r *http.Request, c *http.Client) error {
 	if err1 != nil {
 		return err1
 	}
-	// var res *model.Metrics
-	// json.Unmarshal(b, res)
+
 	fmt.Printf("Client request for update metric %s", b)
 	fmt.Println()
 	return nil
@@ -213,31 +254,10 @@ func main() {
 			}
 		case s := <-sndticker.C:
 			{
-				fmt.Printf("%v Send metrics", s)
-				fmt.Println("")
-				client := &http.Client{}
-
-				//отправляем статистику для gauge
-				for g := range m.gauges {
-					err := sendreq(request(m.Get(Gauge, g), cfg), client)
-					if err != nil {
-						fmt.Printf("Error send gauge Statistic: %v", err)
-						fmt.Println()
-						break
-					}
-				}
-
-				//отправляем статистику counter
-				for c := range m.counters {
-					err := sendreq(request(m.Get(Count, c), cfg), client)
-					if err != nil {
-						fmt.Printf("Error send counter Statistic: %v", err)
-						fmt.Println()
-						break
-					}
-					m.Lock()
-					m.counters[c] = 0
-					m.Unlock()
+				log.Printf("%v Send metrics", s)
+				err := m.updateSend(cfg)
+				if err != nil {
+					log.Printf("Error send metrics: %v", err)
 				}
 			}
 		case q := <-sigChan:

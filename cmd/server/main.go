@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	cfg := getConfig()
+	//cfg := getConfig()
 	storage := storage.CreateRepository()
 	r := handlers.NewRouter(storage)
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
