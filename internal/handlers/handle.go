@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -119,6 +120,7 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
+		log.Printf("Возвращаем UpdateJSON result :%v", retval)
 		err := encoder.Encode(retval)
 		if err != nil {
 			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
@@ -199,6 +201,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		if err != nil {
 			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
 		}
+		log.Printf("Возвращаем UpdateJSON result :%v", retval)
 	}
 }
 
@@ -222,6 +225,7 @@ func metricContextBody(next http.Handler) http.Handler {
 			http.Error(w, "metric.MType is empty", http.StatusBadRequest)
 			return
 		}
+		log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metric)
 		ctx := context.WithValue(r.Context(), metricContextKey{key: "metric"}, metric)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
