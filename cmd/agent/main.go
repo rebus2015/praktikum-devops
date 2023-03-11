@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,13 +13,13 @@ import (
 	"os/signal"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
-
 
 type config struct {
 	ServerAddress  string
@@ -35,6 +37,11 @@ func getConfig() *config {
 
 type gauge float64
 type counter int64
+
+const (
+	Gauge string = "gauge"
+	Count string = "counter"
+)
 
 func (g gauge) String() string {
 	x := fmt.Sprintf("%v", float64(g))
@@ -126,24 +133,42 @@ func (m *metricset) Update() {
 func makereq(cfg *config, typename string, name string, val string) *http.Request {
 	//TODO дописать возврат запроса и формирование URL
 	//http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	path, err := url.JoinPath(
-		"update",
-		typename,
-		name,
-		val)
-	if err != nil {
-		log.Panicf("Url JoinPath failed! with error: %v", err)
-	}
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
-		Path:   path,
+		Path:   "update",
 	}
-	req, err := http.NewRequest(http.MethodPost, queryurl.String(), nil)
+	metric := model.Metrics{
+		ID:    name,
+		MType: typename,
+	}
+	switch typename {
+	case Gauge:
+		{
+			val, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				log.Panicf("convertion error %v", err)
+			}
+			metric.Value = &val
+		}
+	case Count:
+		{
+			val, err := strconv.ParseInt(val, 0, 64)
+			if err != nil {
+				log.Panicf("convertion error %v", err)
+			}
+			metric.Delta = &val
+		}
+	}
+	buf, err := json.Marshal(metric)
+	if err != nil {
+		log.Panicf("Json Marshal error %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, queryurl.String(), bytes.NewBuffer(buf))
 	if err != nil {
 		log.Panicf("Create Request failed! with error: %v", err)
 	}
-	req.Header.Add("Content-Type", "text/plain")
+	req.Header.Add("Content-Type", "application/json")
 	return req
 }
 
@@ -173,7 +198,7 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	cfg:=getConfig()
+	cfg := getConfig()
 	updticker := time.NewTicker(cfg.PollInterval)
 	sndticker := time.NewTicker(cfg.ReportInterval)
 
@@ -196,19 +221,19 @@ func main() {
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
 					sendreq(
-						makereq(cfg,reflect.TypeOf(v).Name(), g, v.String()),
+						makereq(cfg, Gauge, g, v.String()),
 						client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(cfg,reflect.TypeOf(v).Name(), g, v.String()).URL)
+					fmt.Printf("%v %v Send Statistic", s, makereq(cfg, reflect.TypeOf(v).Name(), g, v.String()).URL)
 					fmt.Println("")
 				}
 				m.RUnlock()
 				//отправляем статистику counter
 				sendreq(
-					makereq(cfg,reflect.TypeOf(m.PollCount).Name(),
+					makereq(cfg, Count,
 						"PollCount",
 						m.PollCount.String()), client)
 				fmt.Printf("%v %v Send Statistic", s,
-					makereq(cfg,reflect.TypeOf(m.PollCount).Name(),
+					makereq(cfg, Count,
 						"PollCount", m.PollCount.String()))
 				fmt.Println("")
 				m.Lock()
