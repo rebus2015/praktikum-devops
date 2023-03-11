@@ -188,7 +188,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 	return resp.StatusCode, string(respBody)
 }
 
-func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, string) {
+func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, []byte) {
 
 	data, err := json.Marshal(metric)
 	if err != nil {
@@ -206,7 +206,7 @@ func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, met
 
 	defer resp.Body.Close()
 
-	return resp.StatusCode, string(respBody)
+	return resp.StatusCode, respBody
 }
 
 func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
@@ -229,10 +229,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add gauge test #1",
 			want: wantArgs{
 				code: 200,
-				data: newMetricStruct("G1", "gauge", 0, 100.47),
+				data: &model.Metrics{ID:"G1",MType:  "gauge", Value:  storage.Ptr(100.47) ,},
 			},
 			request: requestArgs{
-				data:        newMetricStruct("G1", "gauge", 0, 100.47),
+				data:        &model.Metrics{ID:"G1",MType:  "gauge", Value:  storage.Ptr(100.47) ,},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -242,10 +242,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add counter test #2",
 			want: wantArgs{
 				code: 200,
-				data: newMetricStruct("C1", "counter", 147, 0),
+				data: &model.Metrics{ID:"C1", MType:  "counter", Delta:  storage.Ptr(int64(147)) ,},
 			},
 			request: requestArgs{
-				data:        newMetricStruct("C1", "counter", 147, 0),
+				data:        &model.Metrics{ID:"C1", MType:  "counter", Delta:  storage.Ptr(int64(147)) ,},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -263,28 +263,17 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
-			statusCode, _ := testRequestJSON(t, ts, tt.request.method, tt.request.path, *tt.request.data)
+			statusCode, body := testRequestJSON(t, ts, tt.request.method, tt.request.path, *tt.request.data)
 			// проверяем код ответа
 			assert.Equal(t, tt.want.code, statusCode)
-			m := model.Metrics{
-				ID:    tt.request.data.ID,
-				MType: tt.request.data.MType,
-				Delta: Ptr(int64(0)),
-				Value: Ptr(float64(0)),
-			}
-			assert.NotEmpty(t, m)
-			assert.EqualValues(t, *tt.want.data, m)
+			var resp model.Metrics
+			err := json.Unmarshal(body, &resp)
+			assert.NoError(t, err)
+			assert.EqualValues(t, *tt.want.data, resp)
 		})
 	}
 }
-func newMetricStruct(id string, t string, d int64, v float64) *model.Metrics {
-	return &model.Metrics{
-		ID:    id,
-		MType: t,
-		Delta: Ptr(d),
-		Value: Ptr(v),
-	}
-}
+
 func Ptr[T any](v T) *T {
 	return &v
 }
