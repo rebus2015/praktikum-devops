@@ -130,8 +130,6 @@ func (m *metricset) Update() {
 }
 
 func makereq(cfg *config, typename string, name string, val string) *http.Request {
-	//TODO дописать возврат запроса и формирование URL
-	//http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
@@ -146,7 +144,8 @@ func makereq(cfg *config, typename string, name string, val string) *http.Reques
 		{
 			val, err := strconv.ParseFloat(val, 64)
 			if err != nil {
-				log.Panicf("convertion error %v", err)
+				log.Printf("convertion error %v", err)
+				//log.Panicf("convertion error %v", err)
 			}
 			metric.Value = &val
 		}
@@ -154,33 +153,42 @@ func makereq(cfg *config, typename string, name string, val string) *http.Reques
 		{
 			val, err := strconv.ParseInt(val, 0, 64)
 			if err != nil {
-				log.Panicf("convertion error %v", err)
+				log.Printf("convertion error %v", err)
+				//log.Panicf("convertion error %v", err)
 			}
 			metric.Delta = &val
 		}
 	}
 	buf, err := json.Marshal(metric)
 	if err != nil {
-		log.Panicf("Json Marshal error %v", err)
+		log.Printf("Json Marshal error %v", err)
+		//log.Panicf("Json Marshal error %v", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, queryurl.String(), bytes.NewBuffer(buf))
 	if err != nil {
-		log.Panicf("Create Request failed! with error: %v", err)
+		log.Printf("Create Request failed! with error: %v", err)
+		//log.Panicf("Create Request failed! with error: %v", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	return req
 }
 
-func sendreq(r *http.Request, c *http.Client) {
+func sendreq(r *http.Request, c *http.Client) error {
 	response, err := c.Do(r)
 	if err != nil {
-		log.Panicf("Client request %v failed with error: %v", r.RequestURI, err)
+		//log.Panicf("Client request %v failed with error: %v", r.RequestURI, err)
+		log.Printf("Client request %v failed with error: %v", r.RequestURI, err)
+		return err
 	}
 	defer response.Body.Close()
-	_, err1 := io.Copy(io.Discard, response.Body)
+	_, err = io.Copy(io.Discard, response.Body)
 	if err != nil {
-		log.Panic(err1)
+
+		log.Printf("Read reaponce body error: %v", err)
+		return err
+		//log.Panic(err1)
 	}
+	return nil
 }
 
 // const hostip string = "127.0.0.1:8080"
@@ -219,7 +227,7 @@ func main() {
 				m.RLock()
 				//отправляем статистику для gauge
 				for g, v := range m.gauges {
-					sendreq(
+					_ = sendreq(
 						makereq(cfg, Gauge, g, v.String()),
 						client)
 					fmt.Printf("%v Send Statistic", s)
@@ -227,10 +235,10 @@ func main() {
 				}
 				m.RUnlock()
 				//отправляем статистику counter
-				sendreq(
-					makereq(cfg, Count,
-						"PollCount",
-						m.PollCount.String()), client)
+				_ =
+					sendreq(
+						makereq(cfg, Count, "PollCount",
+							m.PollCount.String()), client)
 				fmt.Printf("%v Send Statistic", s)
 				fmt.Println("")
 				m.Lock()
