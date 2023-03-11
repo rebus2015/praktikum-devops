@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -70,56 +69,60 @@ func NewRouter(metricStorage storage.Repository) chi.Router {
 
 func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
+		if !ok {
+			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			return
+		}
 
-		data := r.Context().Value(metricContextKey{"metric"}).(*model.Metrics)
-		mtype := data.MType
-		name := data.ID
-		//log.Printf("updateJSONMetricHandlerFunc: %v read from context", data)
-		var err error
-		var metric model.Metrics
+		retval := &model.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+		}
 
-		switch mtype {
-		case "gauge":
-			{
-				if data.Value == nil {
-					http.Error(w, "Not valid metric Value", http.StatusBadRequest)
-					return
-				}
-				metric, err = metricStorage.AddGauge(name, data.Value)
-			}
+		switch metric.MType {
 		case "counter":
 			{
-				if data.Delta == nil {
-					http.Error(w, "Not valid metric Value", http.StatusBadRequest)
+				if metric.Delta == nil {
+					http.Error(w, "Counter not found", http.StatusBadRequest)
 					return
 				}
-				metric, err = metricStorage.AddCounter(name, data.Delta)
+
+				delta, err := metricStorage.AddCounter(metric.ID, metric.Delta)
+				if err != nil {
+					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
+					return
+				}
+				retval.Delta = &delta
+			}
+		case "gauge":
+			{
+				if metric.Value == nil {
+					http.Error(w, "Counter not found", http.StatusBadRequest)
+					return
+				}
+
+				value, err := metricStorage.AddGauge(metric.ID, metric.Value)
+				if err != nil {
+					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
+					return
+				}
+				retval.Value = &value
 			}
 		default:
 			{
-				//log.Printf("updateJSONMetricHandlerFunc: exited with status %v", http.StatusNotImplemented)
-				http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
+				http.Error(w, "Unknown metric type", http.StatusInternalServerError)
 				return
 			}
 		}
 
-		//log.Printf("updateJSONMetricHandlerFunc: update metric error: %v", err)
-		switch {
-		case err == io.EOF:
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		case err != nil:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(&metric); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
 		w.WriteHeader(http.StatusOK)
-		//fmt.Println("New JSON Post message came!")
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(retval)
+		if err != nil {
+			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
+		}
 	}
 }
 

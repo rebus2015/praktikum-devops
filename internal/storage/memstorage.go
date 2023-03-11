@@ -97,15 +97,15 @@ func newStorage() *memStorage {
 }
 
 type Repository interface {
-	AddGauge(name string, val interface{}) (model.Metrics, error)
-	AddCounter(name string, val interface{}) (model.Metrics, error)
+	AddGauge(name string, val interface{}) (float64, error)
+	AddCounter(name string, val interface{}) (int64, error)
 	GetCounter(name string) (int64, error)
 	GetGauge(name string) (float64, error)
 	//FillMetric(data *model.Metrics) error
 	GetView() ([]MetricStr, error)
 }
 
-func (m *memStorage) AddGauge(name string, val interface{}) (model.Metrics, error) {
+func (m *memStorage) AddGauge(name string, val interface{}) (float64, error) {
 
 	g := GMetric{}
 	switch v := val.(type) {
@@ -113,7 +113,7 @@ func (m *memStorage) AddGauge(name string, val interface{}) (model.Metrics, erro
 		{
 			err := g.TryParse(name, v)
 			if err != nil {
-				return model.Metrics{}, err
+				return 0, err
 			}
 		}
 	case *float64:
@@ -122,24 +122,24 @@ func (m *memStorage) AddGauge(name string, val interface{}) (model.Metrics, erro
 			g.Val = *v
 		}
 	default:
-		return model.Metrics{}, errors.New("unexpected gauge value")
+		return 0, errors.New("unexpected gauge value")
 
 	}
 
 	m.Lock()
 	defer m.Unlock()
 	m.Gauges[g.Name] = g.Val
-	return *g.Metric(), nil
+	return m.Gauges[g.Name], nil
 }
 
-func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, error) {
+func (m *memStorage) AddCounter(name string, val interface{}) (int64, error) {
 	c := CMetric{}
 	switch v := val.(type) {
 	case string:
 		{
 			err := c.TryParse(name, v)
 			if err != nil {
-				return model.Metrics{}, err
+				return 0, err
 			}
 		}
 	case *int64:
@@ -148,7 +148,7 @@ func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, er
 			c.Val = *v
 		}
 	default:
-		return model.Metrics{}, errors.New("unexpected counter value")
+		return 0, errors.New("unexpected counter value")
 	}
 	m.Lock()
 	defer m.Unlock()
@@ -158,7 +158,7 @@ func (m *memStorage) AddCounter(name string, val interface{}) (model.Metrics, er
 		m.Counters[c.Name] = m.Counters[c.Name] + c.Val
 		c.Val = m.Counters[c.Name]
 	}
-	return *c.Metric(), nil
+	return m.Counters[c.Name], nil
 }
 
 // TODO: change retrurn value to native, use convert after call when necessery
