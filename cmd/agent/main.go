@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -223,7 +222,7 @@ func main() {
 					sendreq(
 						makereq(cfg, Gauge, g, v.String()),
 						client)
-					fmt.Printf("%v %v Send Statistic", s, makereq(cfg, reflect.TypeOf(v).Name(), g, v.String()).URL)
+					fmt.Printf("%v Send Statistic", s)
 					fmt.Println("")
 				}
 				m.RUnlock()
@@ -232,9 +231,7 @@ func main() {
 					makereq(cfg, Count,
 						"PollCount",
 						m.PollCount.String()), client)
-				fmt.Printf("%v %v Send Statistic", s,
-					makereq(cfg, Count,
-						"PollCount", m.PollCount.String()))
+				fmt.Printf("%v Send Statistic", s)
 				fmt.Println("")
 				m.Lock()
 				m.PollCount = 0

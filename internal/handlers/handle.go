@@ -151,53 +151,73 @@ func updateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 
 func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
+
+		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
+		if !ok {
+			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			return
+		}
+
+		retval := &model.Metrics{
+			ID:    metric.ID,
+			MType: metric.MType,
+		}
 		//log.Printf("getJSONMetricHandlerFunc: %v read from context", metric)
-		err := metricStorage.FillMetric(metric)
-		if err != nil {
-			//log.Printf("GetJSONMetric find metric error: %v", err.Error())
-			JSONError(w, err, http.StatusNotFound)
-			return
+		switch metric.MType {
+		case "counter":
+			{
+				delta, err := metricStorage.GetCounter(metric.ID)
+				if err != nil {
+					http.Error(w, "Counter not found", http.StatusNotFound)
+					return
+				}
+				retval.Delta = &delta
+			}
+		case "gauge":
+			{
+				value, err := metricStorage.GetGauge(metric.ID)
+				if err != nil {
+					http.Error(w, "Gauge not found", http.StatusNotFound)
+					return
+				}
+				retval.Value = &value
+			}
+		default:
+			{
+				http.Error(w, "Unknown metric type", http.StatusInternalServerError)
+				return
+			}
 		}
+
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(&metric); err != nil {
-			JSONError(w, err, http.StatusBadRequest)
-			//log.Printf("GetJSONMetric encoder error: %v", err.Error())
-			return
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		err := encoder.Encode(retval)
+		if err != nil {
+			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
 		}
-
-		//fmt.Println("New JSON Get message came!")
 	}
-}
-
-func JSONError(w http.ResponseWriter, err interface{}, code int) {
-	w.Header().Set("Content-Type", "application/json")
-	//w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(err)
 }
 
 func metricContextBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ct := r.Header.Get("Content-Type")
-		if ct != "application/json" {
-			http.Error(w, "not valid content-type", http.StatusBadRequest)
-		}
+
 		metric := &model.Metrics{}
-		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			if err == io.EOF {
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			}
+		decoder := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+
+		if err := decoder.Decode(metric); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if metric.ID == "" {
 			http.Error(w, "metric.ID is empty", http.StatusBadRequest)
+			return
 		}
 		if metric.MType == "" {
 			http.Error(w, "metric.MType is empty", http.StatusBadRequest)
+			return
 		}
 		ctx := context.WithValue(r.Context(), metricContextKey{key: "metric"}, metric)
 		next.ServeHTTP(w, r.WithContext(ctx))

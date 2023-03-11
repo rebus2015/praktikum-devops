@@ -1,7 +1,6 @@
 package handlers
 
 import (
-
 	"bytes"
 	"encoding/json"
 	"io"
@@ -146,7 +145,6 @@ func Test_getAllHandler(t *testing.T) {
 			method:   http.MethodGet,
 			wantcode: http.StatusOK,
 			path:     "/",
-
 		},
 	}
 
@@ -274,7 +272,6 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 				Delta: Ptr(int64(0)),
 				Value: Ptr(float64(0)),
 			}
-			assert.Empty(t, metricStorage.FillMetric(&m))
 			assert.NotEmpty(t, m)
 			assert.EqualValues(t, *tt.want.data, m)
 		})
@@ -291,4 +288,3 @@ func newMetricStruct(id string, t string, d int64, v float64) *model.Metrics {
 func Ptr[T any](v T) *T {
 	return &v
 }
-

@@ -101,7 +101,7 @@ type Repository interface {
 	AddCounter(name string, val interface{}) (model.Metrics, error)
 	GetCounter(name string) (int64, error)
 	GetGauge(name string) (float64, error)
-	FillMetric(data *model.Metrics) error
+	//FillMetric(data *model.Metrics) error
 	GetView() ([]MetricStr, error)
 }
 
