@@ -159,7 +159,7 @@ func (m *metricset) updateSend(cfg *config) error {
 			request(ctx, gmetric, cfg), client)
 		if err != nil {
 			log.Printf("Error send gauge Statistic: %v\n", err)
-			log.Panic(err)
+			//log.Panic(err)
 			return err
 		}
 	}
@@ -170,7 +170,7 @@ func (m *metricset) updateSend(cfg *config) error {
 		err := sendreq(request(ctx, cmetric, cfg), client)
 		if err != nil {
 			log.Printf("Error send counter Statistic: %v\n", err)
-			log.Panic(err)
+			//log.Panic(err)
 			return err
 		}
 		m.flushCounter(c)
