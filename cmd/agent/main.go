@@ -253,7 +253,8 @@ func main() {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
 	}
-
+	log.Printf("agent started on %v", cfg.ServerAddress)
+	
 	sigChan := make(chan os.Signal, 1)
 
 	signal.Notify(sigChan,
