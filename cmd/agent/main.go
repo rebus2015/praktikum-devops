@@ -31,7 +31,7 @@ func getConfig() *config {
 	return &config{
 		ServerAddress:  "127.0.0.1:8080",
 		PollInterval:   2 * time.Second,
-		ReportInternal: 5 * time.Second,
+		ReportInternal: 10 * time.Second,
 	}
 }
 
@@ -192,7 +192,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Value = Ptr(float64(v))
 				break
 			}
-			log.Printf("Client %v: no such gauge metric", name)
+			log.Printf("Client '%v': no such gauge metric", name)
 		}
 	case Count:
 		{
@@ -200,7 +200,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 				metric.Delta = Ptr(int64(v))
 				break
 			}
-			log.Printf("Client %v: no such counter metric", name)
+			log.Printf("Client '%v': no such counter metric", name)
 		}
 	}
 	return &metric
@@ -215,10 +215,12 @@ func request(ctx context.Context, metric *model.Metrics, cfg *config) *http.Requ
 	}
 	data, err := json.Marshal(metric)
 	if err != nil {
-		log.Panicf("Error request %v\n", err)
+		log.Printf("Error request '%v'\n", err)
+		log.Panicf("Error request '%v'\n", err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
 	if err != nil {
+		log.Printf("Create Request failed! with error: %v\n", err)
 		log.Panicf("Create Request failed! with error: %v\n", err)
 	}
 	req.Header.Add("Content-type", "application/json")
@@ -237,7 +239,7 @@ func sendreq(r *http.Request, c *http.Client) error {
 		return err1
 	}
 
-	fmt.Printf("Client request for update metric %s\n", b)
+	log.Printf("Client request for update metric %s\n", b)
 	fmt.Println()
 	return nil
 }

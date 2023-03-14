@@ -166,7 +166,7 @@ func (m *memStorage) GetCounter(name string) (int64, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
-		return 0, fmt.Errorf("%v: Counter with name is not found", name)
+		return 0, fmt.Errorf("counter with name '%v' is not found", name)
 	}
 	return m.Counters[name], nil
 }
@@ -176,7 +176,7 @@ func (m *memStorage) GetGauge(name string) (float64, error) {
 	m.RLock()
 	defer m.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
-		return 0, fmt.Errorf("%v: Gauge with name is not found", name)
+		return 0, fmt.Errorf("cauge with name '%v' is not found", name)
 	}
 	return m.Gauges[name], nil
 }

@@ -72,6 +72,7 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
 		if !ok {
+			log.Printf("Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'")
 			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
 			return
 		}
@@ -85,12 +86,14 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		case "counter":
 			{
 				if metric.Delta == nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Counter not found status- 400")
 					http.Error(w, "Counter not found", http.StatusBadRequest)
 					return
 				}
 
 				delta, err := metricStorage.AddCounter(metric.ID, metric.Delta)
 				if err != nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Update counter error: %v", err)
 					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
 					return
 				}
@@ -99,12 +102,14 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		case "gauge":
 			{
 				if metric.Value == nil {
-					http.Error(w, "Counter not found", http.StatusBadRequest)
+					log.Printf("Error: [updateJSONMetricHandlerFunc] gauge not found status- 400")
+					http.Error(w, "gauge not found", http.StatusBadRequest)
 					return
 				}
 
 				value, err := metricStorage.AddGauge(metric.ID, metric.Value)
 				if err != nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Update gauge error: %v", err)
 					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
 					return
 				}
@@ -112,6 +117,7 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 			}
 		default:
 			{
+				log.Printf("Error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500")
 				http.Error(w, "Unknown metric type", http.StatusInternalServerError)
 				return
 			}
@@ -120,11 +126,12 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
-		log.Printf("Возвращаем UpdateJSON result :%v", retval)
 		err := encoder.Encode(retval)
 		if err != nil {
+			log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json encode error :%v", err)
 			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
 		}
+		log.Printf("Возвращаем UpdateJSON result :%v", retval)
 	}
 }
 
@@ -159,6 +166,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 
 		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
 		if !ok {
+			log.Printf("Error: [getJSONMetricHandlerFunc] Metric info not found in context")
 			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
 			return
 		}
@@ -170,28 +178,29 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		//log.Printf("getJSONMetricHandlerFunc: %v read from context", metric)
 		switch metric.MType {
 		case "counter":
-			{
-				delta, err := metricStorage.GetCounter(metric.ID)
-				if err != nil {
-					http.Error(w, "Counter not found", http.StatusNotFound)
-					return
-				}
-				retval.Delta = &delta
-			}
-		case "gauge":
-			{
-				value, err := metricStorage.GetGauge(metric.ID)
-				if err != nil {
-					http.Error(w, "Gauge not found", http.StatusNotFound)
-					return
-				}
-				retval.Value = &value
-			}
-		default:
-			{
-				http.Error(w, "Unknown metric type", http.StatusInternalServerError)
+			delta, err := metricStorage.GetCounter(metric.ID)
+			if err != nil {
+				log.Printf("Error: [getJSONMetricHandlerFunc] Counter not found: %v", err)
+				http.Error(w, "Counter not found", http.StatusNotFound)
 				return
 			}
+			retval.Delta = &delta
+
+		case "gauge":
+
+			value, err := metricStorage.GetGauge(metric.ID)
+			if err != nil {
+				log.Printf("Error: [getJSONMetricHandlerFunc] Gauge not found: %v", err)
+				http.Error(w, "Gauge not found", http.StatusNotFound)
+				return
+			}
+			retval.Value = &value
+
+		default:
+			log.Printf("Error: [getJSONMetricHandlerFunc] Unknown metric type")
+			http.Error(w, "Unknown metric type", http.StatusInternalServerError)
+			return
+
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -199,6 +208,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(retval)
 		if err != nil {
+			log.Printf("Error: [getJSONMetricHandlerFunc] Result Json encode error")
 			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
 		}
 		log.Printf("Возвращаем UpdateJSON result :%v", retval)
