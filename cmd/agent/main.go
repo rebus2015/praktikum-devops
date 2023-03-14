@@ -18,21 +18,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/caarlos0/env"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
 type config struct {
-	ServerAddress  string
-	ReportInternal time.Duration
-	PollInterval   time.Duration
+	ServerAddress  string        `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
+	ReportInterval time.Duration `env:"PUSH_TIMEOUT" envDefault:"10s"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
 }
 
-func getConfig() *config {
-	return &config{
-		ServerAddress:  "127.0.0.1:8080",
-		PollInterval:   2 * time.Second,
-		ReportInternal: 10 * time.Second,
-	}
+func getConfig() (*config, error) {
+	conf := config{}
+	err := env.Parse(&conf)
+
+	return &conf, err
 }
 
 type gauge float64
@@ -159,7 +159,6 @@ func (m *metricset) updateSend(cfg *config) error {
 			request(ctx, gmetric, cfg), client)
 		if err != nil {
 			log.Printf("Error send gauge Statistic: %v\n", err)
-			//log.Panic(err)
 			return err
 		}
 	}
@@ -170,7 +169,6 @@ func (m *metricset) updateSend(cfg *config) error {
 		err := sendreq(request(ctx, cmetric, cfg), client)
 		if err != nil {
 			log.Printf("Error send counter Statistic: %v\n", err)
-			//log.Panic(err)
 			return err
 		}
 		m.flushCounter(c)
@@ -250,7 +248,12 @@ func main() {
 
 	m := metricset{}
 	m.Declare()
-	cfg := getConfig()
+	cfg, err := getConfig()
+	if err != nil {
+		log.Panicf("Error reading configuration from env variables: %v", err)
+		return
+	}
+
 	sigChan := make(chan os.Signal, 1)
 
 	signal.Notify(sigChan,
@@ -259,7 +262,7 @@ func main() {
 		syscall.SIGQUIT)
 
 	updticker := time.NewTicker(cfg.PollInterval)
-	sndticker := time.NewTicker(cfg.ReportInternal)
+	sndticker := time.NewTicker(cfg.ReportInterval)
 
 	defer updticker.Stop()
 	defer sndticker.Stop()
