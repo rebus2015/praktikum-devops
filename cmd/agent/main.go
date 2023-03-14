@@ -231,12 +231,14 @@ func request(ctx context.Context, metric *model.Metrics, cfg *config) *http.Requ
 func sendreq(r *http.Request, c *http.Client) error {
 	response, err := c.Do(r)
 	if err != nil {
+		log.Printf("Send request error: %v", err)
 		return err
 	}
 	defer response.Body.Close()
-	b, err1 := io.ReadAll(response.Body)
-	if err1 != nil {
-		return err1
+	b, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Printf("Read response body error: %v", err)
+		return err
 	}
 
 	log.Printf("Client request for update metric %s\n", b)
@@ -278,6 +280,7 @@ func main() {
 		case q := <-sigChan:
 			{
 				log.Printf("Signal notification: %v\n", q)
+				os.Exit(0)
 				//TODO корректно завершить обработку
 			}
 		}
