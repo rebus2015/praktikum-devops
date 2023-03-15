@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 
@@ -40,12 +42,22 @@ type metricContextKey struct {
 	key string
 }
 
+var contentTypes = []string{
+	"application/javascript",
+	"application/json",
+	"text/css",
+	"text/html",
+	"text/plain",
+	"text/xml",
+}
+
 func NewRouter(metricStorage *storage.Repository) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
 	r.Get("/", GetAllHandler(*metricStorage))
 
@@ -67,7 +79,6 @@ func NewRouter(metricStorage *storage.Repository) chi.Router {
 
 	return r
 }
-
 
 func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -217,9 +228,22 @@ func GetJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 
 func MetricContextBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var reader io.Reader
+		if r.Header.Get(`Content-Encoding`) == `gzip` {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				log.Printf("Failed to create gzip reader: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			reader = gz
+			defer gz.Close()
+		} else {
+			reader = r.Body
+		}
 
 		metric := &model.Metrics{}
-		decoder := json.NewDecoder(r.Body)
+		decoder := json.NewDecoder(reader)
 		defer r.Body.Close()
 
 		if err := decoder.Decode(metric); err != nil {
