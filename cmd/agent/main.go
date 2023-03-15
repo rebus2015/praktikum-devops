@@ -33,7 +33,7 @@ func getConfig() (*config, error) {
 	conf := config{}
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
 	flag.DurationVar(&conf.ReportInterval, "r", time.Second*10, "Interval before push metrics to server")
-	flag.DurationVar(&conf.ReportInterval, "p", time.Second*2, "Interval between metrics reads from runtime")
+	flag.DurationVar(&conf.PollInterval, "p", time.Second*2, "Interval between metrics reads from runtime")
 
 	flag.Parse()
 	err := env.Parse(&conf)
