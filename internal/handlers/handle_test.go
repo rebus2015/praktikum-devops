@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
-
 	"github.com/rebus2015/praktikum-devops/internal/storage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,11 +54,11 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	metricStorage := storage.CreateRepository()
+	metricStorage := storage.CreateMemoryRepository()
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(metricStorage)
+			r := NewRouter(&metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -110,13 +110,13 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.CreateRepository()
+	metricStorage := storage.CreateMemoryRepository()
 
 	for _, tt := range tests {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(metricStorage)
+			r := NewRouter(&metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -132,16 +132,16 @@ func Test_getAllHandler(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		counters []storage.MetricStr
-		gauges   []storage.MetricStr
+		counters []memstorage.MetricStr
+		gauges   []memstorage.MetricStr
 		method   string
 		wantcode int
 		path     string
 	}{
 		{
 			name:     "Positive test #1",
-			counters: []storage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
-			gauges:   []storage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
+			counters: []memstorage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
+			gauges:   []memstorage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
 			method:   http.MethodGet,
 			wantcode: http.StatusOK,
 			path:     "/",
@@ -149,7 +149,7 @@ func Test_getAllHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		metricStorage := storage.CreateRepository()
+		metricStorage := storage.CreateMemoryRepository()
 
 		for _, c := range tt.counters {
 			metricStorage.AddCounter(c.Name, c.Val)
@@ -161,7 +161,7 @@ func Test_getAllHandler(t *testing.T) {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(metricStorage)
+			r := NewRouter(&metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -229,10 +229,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add gauge test #1",
 			want: wantArgs{
 				code: 200,
-				data: &model.Metrics{ID:"G1",MType:  "gauge", Value:  storage.Ptr(100.47) ,},
+				data: &model.Metrics{ID: "G1", MType: "gauge", Value: memstorage.Ptr(100.47)},
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID:"G1",MType:  "gauge", Value:  storage.Ptr(100.47) ,},
+				data:        &model.Metrics{ID: "G1", MType: "gauge", Value: memstorage.Ptr(100.47)},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -242,10 +242,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add counter test #2",
 			want: wantArgs{
 				code: 200,
-				data: &model.Metrics{ID:"C1", MType:  "counter", Delta:  storage.Ptr(int64(147)) ,},
+				data: &model.Metrics{ID: "C1", MType: "counter", Delta: memstorage.Ptr(int64(147))},
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID:"C1", MType:  "counter", Delta:  storage.Ptr(int64(147)) ,},
+				data:        &model.Metrics{ID: "C1", MType: "counter", Delta: memstorage.Ptr(int64(147))},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -253,13 +253,13 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.CreateRepository()
+	metricStorage := storage.CreateMemoryRepository()
 
 	for _, tt := range tests {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(metricStorage)
+			r := NewRouter(&metricStorage)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 

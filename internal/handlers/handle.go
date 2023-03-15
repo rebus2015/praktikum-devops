@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
@@ -40,35 +40,36 @@ type metricContextKey struct {
 	key string
 }
 
-func NewRouter(metricStorage storage.Repository) chi.Router {
+func NewRouter(metricStorage *storage.Repository) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/", getAllHandler(metricStorage))
+	r.Get("/", GetAllHandler(*metricStorage))
 
 	r.Route("/update", func(r chi.Router) {
-		r.With(metricContextBody).
-			Post("/", updateJSONMetricHandlerFunc(metricStorage))
+		r.With(MetricContextBody).
+			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
-			r.Post("/", updateMetricHandlerFunc(metricStorage))
+			r.Post("/", UpdateMetricHandlerFunc(*metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.With(metricContextBody).
-			Post("/", getJSONMetricHandlerFunc(metricStorage))
+		r.With(MetricContextBody).
+			Post("/", GetJSONMetricHandlerFunc(*metricStorage))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
-			r.Get("/", getMetricHandlerFunc(metricStorage))
+			r.Get("/", GetMetricHandlerFunc(*metricStorage))
 		})
 	})
 
 	return r
 }
 
-func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+
+func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
 		if !ok {
@@ -135,7 +136,7 @@ func updateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 	}
 }
 
-func updateMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtype := chi.URLParam(r, "mtype")
 		name := chi.URLParam(r, "name")
@@ -161,7 +162,7 @@ func updateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
-func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		metric, ok := r.Context().Value(metricContextKey{key: "metric"}).(*model.Metrics)
@@ -175,7 +176,6 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 			ID:    metric.ID,
 			MType: metric.MType,
 		}
-		//log.Printf("getJSONMetricHandlerFunc: %v read from context", metric)
 		switch metric.MType {
 		case "counter":
 			delta, err := metricStorage.GetCounter(metric.ID)
@@ -215,7 +215,7 @@ func getJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 	}
 }
 
-func metricContextBody(next http.Handler) http.Handler {
+func MetricContextBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		metric := &model.Metrics{}
@@ -241,7 +241,7 @@ func metricContextBody(next http.Handler) http.Handler {
 	})
 }
 
-func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")
 		mtype := chi.URLParam(r, "mtype")
@@ -281,7 +281,7 @@ func getMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 	}
 }
 
-func getAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, _ *http.Request) {
 
 		metrics, err := metricStorage.GetView()
