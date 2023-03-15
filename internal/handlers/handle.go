@@ -47,6 +47,7 @@ var contentTypes = []string{
 	"application/json",
 	"text/css",
 	"text/html",
+	"text/html; charset=utf-8",
 	"text/plain",
 	"text/xml",
 }
@@ -318,11 +319,13 @@ func GetAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter,
 			http.Error(w, err.Error(), http.StatusBadRequest) // 400
 			return
 		}
-
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
 		err = template.ExecuteTemplate(w, "metrics", metrics)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError) //500
 			return
 		}
+
 	}
 }
