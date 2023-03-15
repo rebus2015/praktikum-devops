@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -23,13 +24,18 @@ import (
 )
 
 type config struct {
-	ServerAddress  string        `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
-	ReportInterval time.Duration `env:"PUSH_TIMEOUT" envDefault:"10s"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
+	ServerAddress  string        `env:"ADDRESS"`
+	ReportInterval time.Duration `env:"PUSH_TIMEOUT"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 }
 
 func getConfig() (*config, error) {
 	conf := config{}
+	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
+	flag.DurationVar(&conf.ReportInterval, "r", time.Second*10, "Interval before push metrics to server")
+	flag.DurationVar(&conf.ReportInterval, "p", time.Second*2, "Interval between metrics reads from runtime")
+
+	flag.Parse()
 	err := env.Parse(&conf)
 
 	return &conf, err
@@ -254,7 +260,7 @@ func main() {
 		return
 	}
 	log.Printf("agent started on %v", cfg.ServerAddress)
-	
+
 	sigChan := make(chan os.Signal, 1)
 
 	signal.Notify(sigChan,
