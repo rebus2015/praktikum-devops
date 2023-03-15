@@ -1,6 +1,5 @@
 package main
 
-//import "../../internal/storage"
 import (
 	"log"
 	"net/http"
