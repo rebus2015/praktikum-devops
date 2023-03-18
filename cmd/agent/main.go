@@ -42,12 +42,14 @@ func getConfig() (*config, error) {
 }
 
 type gauge float64
+
 type counter int64
 
 func (g gauge) String() string {
 	x := fmt.Sprintf("%v", float64(g))
 	return x
 }
+
 func (c counter) String() string {
 	x := fmt.Sprintf("%v", int64(c))
 	return x
@@ -136,8 +138,7 @@ func (m *metricset) Update() {
 	m.gauges["StackSys"] = gauge(ms.StackSys)
 	m.gauges["Sys"] = gauge(ms.Sys)
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
-	m.gauges["RandomValue"] = gauge(rand.Float32())
-
+	m.gauges["RandomValue"] = gauge(rand.Float64())
 }
 
 func Ptr[T any](v T) *T {
