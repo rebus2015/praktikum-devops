@@ -18,12 +18,12 @@ type FileStorage struct {
 	SyncMode  bool
 }
 
-func  NewStorage(c *config.Config) (*FileStorage) {
+func NewStorage(c *config.Config) *FileStorage {
 	return &FileStorage{
 		&memstorage.MemStorage{
 			Gauges:   map[string]float64{},
 			Counters: map[string]int64{},
-			RWMutex:  sync.RWMutex{},
+			Mux:      sync.RWMutex{},
 		},
 		c.StoreFile,
 		c.StoreInterval == 0,
@@ -31,41 +31,53 @@ func  NewStorage(c *config.Config) (*FileStorage) {
 }
 
 func (f *FileStorage) AddGauge(name string, val interface{}) (float64, error) {
-	retval,err := f.MemStorage.AddGauge(name, val)
-	if(f.SyncMode){f.Save()}
+	retval, err := f.MemStorage.SetGauge(name, val)
+	if f.SyncMode {
+		errs := f.Save()
+		if errs != nil {
+			log.Printf("FileStorage Save error: %v", err)
+		}
+	}
 	return retval, err
 }
+
 func (f *FileStorage) AddCounter(name string, val interface{}) (int64, error) {
-	retval,err := f.MemStorage.AddCounter(name, val)
-	if(f.SyncMode){f.Save()}
+	retval, err := f.MemStorage.IncCounter(name, val)
+	if f.SyncMode {
+		errs := f.Save()
+		if errs != nil {
+			log.Printf("FileStorage Save error: %v", errs)
+		}
+	}
 	return retval, err
 }
-func (f *FileStorage) GetCounter(name string) (int64, error) {
-	return f.MemStorage.GetCounter(name)
-}
 
-func (f *FileStorage) GetGauge(name string) (float64, error) {
-	return f.MemStorage.GetGauge(name)
-}
+// func (f *FileStorage) GetCounter(name string) (int64, error) {
+// 	return f.MemStorage.GetCounter(name)
+// }
 
-func (f *FileStorage) GetView() ([]memstorage.MetricStr, error) {
-	return f.MemStorage.GetView()
-}
+// func (f *FileStorage) GetGauge(name string) (float64, error) {
+// 	return f.MemStorage.GetGauge(name)
+// }
 
-func (f *FileStorage) Storage() *memstorage.MemStorage {
-	return f.MemStorage.Storage()
-}
+// func (f *FileStorage) GetView() ([]memstorage.MetricStr, error) {
+// 	return f.MemStorage.GetView()
+// }
 
-func (f *FileStorage) Save() error{
-writer, err := NewWriter(f.StoreFile)
+// func (f *FileStorage) Storage() *memstorage.MemStorage {
+// 	return f.MemStorage.Storage()
+// }
+
+func (f *FileStorage) Save() error {
+	writer, err := NewWriter(f.StoreFile)
 	if err != nil {
-		log.Printf("Save metrics to file '%s' error: %v",f.StoreFile ,err)
+		log.Printf("Save metrics to file '%s' error: %v", f.StoreFile, err)
 		log.Fatal(err)
 	}
 
 	err = writer.encoder.Encode(f.MemStorage)
 	if err != nil {
-		log.Printf("Save metrics to file '%s' Encode error: %v",f.StoreFile ,err)
+		log.Printf("Save metrics to file '%s' Encode error: %v", f.StoreFile, err)
 		return err
 	}
 	return nil
@@ -74,38 +86,42 @@ writer, err := NewWriter(f.StoreFile)
 func (f *FileStorage) Restore(sf string) {
 	reader, err := NewReader(sf)
 	if err != nil {
-		log.Printf("Restore metrics from file '%s' reader error: %v",sf,err)
+		log.Printf("Restore metrics from file '%s' reader error: %v", sf, err)
 		log.Fatal(err)
 	}
 
 	checkFile, err := os.Stat(sf)
 	if err != nil {
-		log.Printf("Restore metrics from file '%s' Stat error: %v",sf,err)
+		log.Printf("Restore metrics from file '%s' Stat error: %v", sf, err)
 		log.Fatal(err)
 	}
 
 	size := checkFile.Size()
 
 	if size == 0 {
-		f.Save()
+		errs := f.Save()
+		if errs != nil {
+			log.Printf("Restore Save error: %v", errs)
+		}
 	}
 
-	if restored, err := reader.ReadStorage(); err != nil {
-		log.Printf("Restore metrics from file '%s' ReadStorage error: %v",sf,err)
+	restored, err := reader.ReadStorage()
+	if err != nil {
+		log.Printf("Restore metrics from file '%s' ReadStorage error: %v", sf, err)
 		log.Fatal(err)
-	} else {
-		f.MemStorage = restored.MemStorage
 	}
+	f.MemStorage = restored.MemStorage
 }
-
 
 func (f *FileStorage) SaveTicker(storeint time.Duration) {
 	ticker := time.NewTicker(storeint)
 	for range ticker.C {
-		f.Save()
+		errs := f.Save()
+		if errs != nil {
+			log.Printf("FileStorage Save error: %v", errs)
+		}
 	}
 }
-
 
 type producer struct {
 	file    *os.File
@@ -127,6 +143,7 @@ func NewWriter(filename string) (*producer, error) {
 func (p *producer) Close() error {
 	return p.file.Close()
 }
+
 type consumer struct {
 	file    *os.File
 	scanner *bufio.Scanner
@@ -134,6 +151,7 @@ type consumer struct {
 
 func NewReader(filename string) (*consumer, error) {
 	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0777)
+
 	if err != nil {
 		return nil, err
 	}

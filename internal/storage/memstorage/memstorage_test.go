@@ -12,12 +12,20 @@ func TestGMetric_String(t *testing.T) {
 		g    GMetric
 		want string
 	}{
-		{"GMetric to string int",
-			GMetric{"Gauge1", 424},
+		{
+			"GMetric to string int",
+			GMetric{
+				"Gauge1",
+				424,
+			},
 			"424",
 		},
-		{"GMetric to string negative float",
-			GMetric{"Gauge2", -424.000234},
+		{
+			"GMetric to string negative float",
+			GMetric{
+				"Gauge2",
+				-424.000234,
+			},
 			"-424.000234",
 		},
 	}
@@ -38,12 +46,20 @@ func TestCMetric_String(t *testing.T) {
 		c    CMetric
 		want string
 	}{
-		{"CMetric to string int",
-			CMetric{"Counter1", 424},
+		{
+			"CMetric to string int",
+			CMetric{
+				"Counter1",
+				424,
+			},
 			"424",
 		},
-		{"GMetric to string negative float",
-			CMetric{"Counter2", -333},
+		{
+			"GMetric to string negative float",
+			CMetric{
+				"Counter2",
+				-333,
+			},
 			"-333",
 		},
 	}
@@ -68,8 +84,27 @@ func TestGMetric_TryParse(t *testing.T) {
 		g    data
 		want *GMetric
 	}{
-		{name: "test1 gauge", g: data{"gauge1", "-234.300043"}, want: &GMetric{"gauge1", -234.300043}},
-		{name: "test2 gauge", g: data{"gauge2", "102342"}, want: &GMetric{"gauge2", 102342}},
+		{
+			name: "test1 gauge",
+			g: data{
+				"gauge1",
+				"-234.300043",
+			},
+			want: &GMetric{
+				"gauge1", -234.300043,
+			},
+		},
+		{
+			name: "test2 gauge",
+			g: data{
+				"gauge2",
+				"102342",
+			},
+			want: &GMetric{
+				"gauge2",
+				102342,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,8 +127,28 @@ func TestCMetric_TryParse(t *testing.T) {
 		c    data
 		want *CMetric
 	}{
-		{name: "test1", c: data{"counter1", "-234"}, want: &CMetric{"counter1", -234}},
-		{name: "test2", c: data{"counter2", "10234234"}, want: &CMetric{"counter2", 10234234}},
+		{
+			name: "test1",
+			c: data{
+				"counter1",
+				"-234",
+			},
+			want: &CMetric{
+				"counter1",
+				-234,
+			},
+		},
+		{
+			name: "test2",
+			c: data{
+				"counter2",
+				"10234234",
+			},
+			want: &CMetric{
+				"counter2",
+				10234234,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,15 +182,21 @@ func TestMemStorage_AddGauge(t *testing.T) {
 				map[string]float64{"g1": -32.00023},
 				map[string]int64{"c1": 0},
 			},
-			args{name: "gm", val: "234", floatval: 234},
+			args{
+				name:     "gm",
+				val:      "234",
+				floatval: 234,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewStorage()
-			m.AddGauge(tt.args.name, tt.args.val)
-			_, exists := m.Gauges[tt.args.name]
-			assert.True(t, exists && m.Gauges[tt.args.name] == tt.args.floatval)
+			_, err := m.SetGauge(tt.args.name, tt.args.val)
+			if assert.NoError(t, err) {
+				_, exists := m.Gauges[tt.args.name]
+				assert.True(t, exists && m.Gauges[tt.args.name] == tt.args.floatval)
+			}
 		})
 	}
 }
@@ -169,9 +230,11 @@ func TestMemStorage_AddCounterString(t *testing.T) {
 			m := NewStorage()
 			m.Counters = tt.r.Counters
 			m.Gauges = tt.r.Gauges
-			m.AddCounter(tt.args.name, tt.args.val)
-			_, exists := m.Counters[tt.args.name]
-			assert.True(t, exists && m.Counters[tt.args.name] == tt.args.intval)
+			_, err := m.IncCounter(tt.args.name, tt.args.val)
+			if assert.NoError(t, err) {
+				_, exists := m.Counters[tt.args.name]
+				assert.True(t, exists && m.Counters[tt.args.name] == tt.args.intval)
+			}
 		})
 	}
 }
@@ -197,7 +260,7 @@ func TestMemStorage_AddCounterInt(t *testing.T) {
 				map[string]float64{"g1": -32.00023},
 				map[string]int64{"c1": 100},
 			},
-			args{name: "c1", val: Ptr(int64(3)), intval: 103},
+			args{name: "c1", val: ptr(int64(3)), intval: 103},
 		},
 	}
 	for _, tt := range tests {
@@ -205,9 +268,11 @@ func TestMemStorage_AddCounterInt(t *testing.T) {
 			m := NewStorage()
 			m.Counters = tt.r.Counters
 			m.Gauges = tt.r.Gauges
-			m.AddCounter(tt.args.name, tt.args.val)
-			_, exists := m.Counters[tt.args.name]
-			assert.True(t, exists && m.Counters[tt.args.name] == tt.args.intval)
+			_, err := m.IncCounter(tt.args.name, tt.args.val)
+			if assert.NoError(t, err) {
+				_, exists := m.Counters[tt.args.name]
+				assert.True(t, exists && m.Counters[tt.args.name] == tt.args.intval)
+			}
 		})
 	}
 }

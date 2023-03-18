@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
@@ -54,7 +55,8 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	metricStorage := storage.CreateMemoryRepository()
+	cfg := config.Config{StoreFile: ""}
+	metricStorage := storage.Create(&cfg)
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -65,7 +67,6 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			statusCode, _ := testRequest(t, ts, tt.method, tt.request)
 			// проверяем код ответа
 			assert.Equal(t, tt.args.code, statusCode)
-
 		})
 	}
 }
@@ -110,10 +111,9 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.CreateMemoryRepository()
+	metricStorage := storage.Create(&config.Config{StoreFile: ""})
 
 	for _, tt := range tests {
-
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewRouter(&metricStorage)
@@ -123,13 +123,11 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 			statusCode, _ := testRequest(t, ts, tt.method, tt.request)
 			// проверяем код ответа
 			assert.Equal(t, tt.args.code, statusCode)
-
 		})
 	}
 }
 
 func Test_getAllHandler(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		counters []memstorage.MetricStr
@@ -149,14 +147,19 @@ func Test_getAllHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		metricStorage := storage.CreateMemoryRepository()
-
+		metricStorage := storage.Create(&config.Config{StoreFile: ""})
 		for _, c := range tt.counters {
-			metricStorage.AddCounter(c.Name, c.Val)
+			_, err := metricStorage.IncCounter(c.Name, c.Val)
+			if err != nil {
+				log.Printf("Test_GetAllHandler error:%v", err)
+			}
 		}
 
 		for _, g := range tt.gauges {
-			metricStorage.AddGauge(g.Name, g.Val)
+			_, err := metricStorage.SetGauge(g.Name, g.Val)
+			if err != nil {
+				log.Printf("Test_GetAllHandler error:%v", err)
+			}
 		}
 
 		// запускаем каждый тест
@@ -168,7 +171,6 @@ func Test_getAllHandler(t *testing.T) {
 			statusCode, _ := testRequest(t, ts, tt.method, tt.path)
 			// проверяем код ответа
 			assert.Equal(t, tt.wantcode, statusCode)
-
 		})
 	}
 }
@@ -189,7 +191,6 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 }
 
 func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, []byte) {
-
 	data, err := json.Marshal(metric)
 	if err != nil {
 		log.Panic(err)
@@ -203,10 +204,12 @@ func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, met
 
 	respBody, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-
 	defer resp.Body.Close()
-
 	return resp.StatusCode, respBody
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
@@ -229,10 +232,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add gauge test #1",
 			want: wantArgs{
 				code: 200,
-				data: &model.Metrics{ID: "G1", MType: "gauge", Value: memstorage.Ptr(100.47)},
+				data: &model.Metrics{ID: "G1", MType: "gauge", Value: ptr(100.47)},
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID: "G1", MType: "gauge", Value: memstorage.Ptr(100.47)},
+				data:        &model.Metrics{ID: "G1", MType: "gauge", Value: ptr(100.47)},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -242,10 +245,10 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			name: "positive add counter test #2",
 			want: wantArgs{
 				code: 200,
-				data: &model.Metrics{ID: "C1", MType: "counter", Delta: memstorage.Ptr(int64(147))},
+				data: &model.Metrics{ID: "C1", MType: "counter", Delta: ptr(int64(147))},
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID: "C1", MType: "counter", Delta: memstorage.Ptr(int64(147))},
+				data:        &model.Metrics{ID: "C1", MType: "counter", Delta: ptr(int64(147))},
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -253,10 +256,9 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.CreateMemoryRepository()
+	metricStorage := storage.Create(&config.Config{StoreFile: ""})
 
 	for _, tt := range tests {
-
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewRouter(&metricStorage)

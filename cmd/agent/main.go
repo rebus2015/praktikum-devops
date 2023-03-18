@@ -14,12 +14,12 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/caarlos0/env"
+
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
@@ -56,12 +56,12 @@ func (c counter) String() string {
 type metricset struct {
 	gauges   map[string]gauge
 	counters map[string]counter
-	sync.RWMutex
+	mux      sync.RWMutex
 }
 
 func (m *metricset) Declare() {
-	m.Lock()
-	defer m.Unlock()
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.counters = map[string]counter{
 		"PollCount": 0,
 	}
@@ -104,11 +104,10 @@ const (
 )
 
 func (m *metricset) Update() {
-
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-	m.Lock()
-	defer m.Unlock()
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.counters["PollCount"]++
 	m.gauges["Alloc"] = gauge(ms.Alloc)
 	m.gauges["BuckHashSys"] = gauge(ms.BuckHashSys)
@@ -146,19 +145,17 @@ func Ptr[T any](v T) *T {
 }
 
 func (m *metricset) flushCounter(c string) {
-	m.Lock()
-	defer m.Unlock()
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	m.counters[c] = 0
 }
 
 func (m *metricset) updateSend(cfg *config) error {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	client := &http.Client{}
-	//m.Lock()
 
-	//отправляем статистику для gauge
+	// отправляем статистику для gauge
 	for g := range m.gauges {
 		gmetric := m.Get(Gauge, g)
 		err := sendreq(
@@ -169,7 +166,7 @@ func (m *metricset) updateSend(cfg *config) error {
 		}
 	}
 
-	//отправляем статистику counter
+	// отправляем статистику counter
 	for c := range m.counters {
 		cmetric := m.Get(Count, c)
 		err := sendreq(request(ctx, cmetric, cfg), client)
@@ -187,8 +184,8 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 		ID:    name,
 		MType: mtype,
 	}
-	m.RLock()
-	defer m.RUnlock()
+	m.mux.RLock()
+	defer m.mux.RUnlock()
 	switch mtype {
 	case Gauge:
 		{
@@ -211,7 +208,6 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 }
 
 func request(ctx context.Context, metric *model.Metrics, cfg *config) *http.Request {
-
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
@@ -251,7 +247,6 @@ func sendreq(r *http.Request, c *http.Client) error {
 }
 
 func main() {
-
 	m := metricset{}
 	m.Declare()
 	cfg, err := getConfig()
@@ -271,9 +266,6 @@ func main() {
 	updticker := time.NewTicker(cfg.PollInterval)
 	sndticker := time.NewTicker(cfg.ReportInterval)
 
-	defer updticker.Stop()
-	defer sndticker.Stop()
-
 	for {
 		select {
 		case <-updticker.C:
@@ -290,8 +282,9 @@ func main() {
 		case q := <-sigChan:
 			{
 				log.Printf("Signal notification: %v\n", q)
+				updticker.Stop()
+				sndticker.Stop()
 				os.Exit(0)
-				//TODO корректно завершить обработку
 			}
 		}
 	}

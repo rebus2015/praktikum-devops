@@ -16,7 +16,7 @@ func main() {
 		return
 	}
 	log.Printf("server started on %v", cfg.ServerAddress)
-	storage := storage.InitStorage(cfg)
-	r := handlers.NewRouter(storage)
+	storage := storage.Create(cfg)
+	r := handlers.NewRouter(&storage)
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
 }
