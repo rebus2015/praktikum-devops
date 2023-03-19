@@ -3,12 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -138,7 +139,19 @@ func (m *metricset) Update() {
 	m.gauges["StackSys"] = gauge(ms.StackSys)
 	m.gauges["Sys"] = gauge(ms.Sys)
 	m.gauges["TotalAlloc"] = gauge(ms.TotalAlloc)
-	m.gauges["RandomValue"] = gauge(rand.Float64())
+	m.gauges["RandomValue"] = gauge(newFloat64())
+}
+
+func intn(max int64) int64 {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(max))
+	if err != nil {
+		panic(err)
+	}
+	return nBig.Int64()
+}
+
+func newFloat64() float64 {
+	return float64(intn(1<<53)) / (1 << 53)
 }
 
 func Ptr[T any](v T) *T {

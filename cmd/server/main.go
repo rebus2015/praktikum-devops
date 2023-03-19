@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
@@ -18,5 +19,10 @@ func main() {
 	log.Printf("server started on %v", cfg.ServerAddress)
 	storage := storage.Create(cfg)
 	r := handlers.NewRouter(&storage)
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
+	srv := &http.Server{
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		Handler:      r,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
