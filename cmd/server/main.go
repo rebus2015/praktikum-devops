@@ -20,8 +20,9 @@ func main() {
 	storage := storage.Create(cfg)
 	r := handlers.NewRouter(&storage)
 	srv := &http.Server{
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:         cfg.ServerAddress,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		Handler:      r,
 	}
 	log.Fatal(srv.ListenAndServe())
