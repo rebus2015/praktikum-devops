@@ -38,7 +38,7 @@ const templ = `{{define "metrics"}}
 </html>
 {{end}}`
 
-type metricContextKey struct {}
+type metricContextKey struct{}
 
 var contentTypes = []string{
 	"application/javascript",

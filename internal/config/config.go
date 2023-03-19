@@ -9,9 +9,9 @@ import (
 
 type Config struct {
 	ServerAddress string        `env:"ADDRESS"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"` //0 - синхронная запись
-	StoreFile     string        `env:"STORE_FILE"`     //пустое значние отключает запись на диск
-	Restore       bool          `env:"RESTORE"`        //загружать начальные значениея из файла
+	StoreInterval time.Duration `env:"STORE_INTERVAL"` // 0 - синхронная запись
+	StoreFile     string        `env:"STORE_FILE"`     // пустое значние отключает запись на диск
+	Restore       bool          `env:"RESTORE"`        // загружать начальные значениея из файла
 }
 
 func GetConfig() (*Config, error) {
