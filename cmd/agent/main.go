@@ -22,12 +22,14 @@ import (
 	"github.com/caarlos0/env"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
+	"github.com/rebus2015/praktikum-devops/internal/signer"
 )
 
 type config struct {
 	ServerAddress  string        `env:"ADDRESS"`
 	ReportInterval time.Duration `env:"PUSH_TIMEOUT"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
+	Key            string        `env:"KEY"`
 }
 
 func getConfig() (*config, error) {
@@ -35,6 +37,7 @@ func getConfig() (*config, error) {
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
 	flag.DurationVar(&conf.ReportInterval, "r", time.Second*10, "Interval before push metrics to server")
 	flag.DurationVar(&conf.PollInterval, "p", time.Second*2, "Interval between metrics reads from runtime")
+	flag.StringVar(&conf.Key, "k", "Secret KEY", "Key to sign up data with SHA256 algorythm")
 
 	flag.Parse()
 	err := env.Parse(&conf)
@@ -154,7 +157,7 @@ func newFloat64() float64 {
 	return float64(intn(1<<53)) / (1 << 53)
 }
 
-func Ptr[T any](v T) *T {
+func ptr[T any](v T) *T {
 	return &v
 }
 
@@ -171,7 +174,15 @@ func (m *metricset) updateSend(cfg *config) error {
 
 	// отправляем статистику для gauge
 	for g := range m.gauges {
-		gmetric := m.Get(Gauge, g)
+		gmetric := m.get(Gauge, g)
+		if cfg.Key != "" {
+			signer := signer.NewSigner(gmetric, cfg.Key)
+			err := signer.Sign()
+			if err != nil {
+				log.Printf("Error send gauge Statistic: %v\n", err)
+				return err
+			}
+		}
 		err := sendreq(
 			request(ctx, gmetric, cfg), client)
 		if err != nil {
@@ -182,7 +193,15 @@ func (m *metricset) updateSend(cfg *config) error {
 
 	// отправляем статистику counter
 	for c := range m.counters {
-		cmetric := m.Get(Count, c)
+		cmetric := m.get(Count, c)
+		if cfg.Key != "" {
+			signer := signer.NewSigner(cmetric, cfg.Key)
+			err := signer.Sign()
+			if err != nil {
+				log.Printf("Error send gauge Statistic: %v\n", err)
+				return err
+			}
+		}
 		err := sendreq(request(ctx, cmetric, cfg), client)
 		if err != nil {
 			log.Printf("Error send counter Statistic: %v\n", err)
@@ -193,7 +212,7 @@ func (m *metricset) updateSend(cfg *config) error {
 	return nil
 }
 
-func (m *metricset) Get(mtype string, name string) *model.Metrics {
+func (m *metricset) get(mtype string, name string) *model.Metrics {
 	metric := model.Metrics{
 		ID:    name,
 		MType: mtype,
@@ -204,7 +223,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 	case Gauge:
 		{
 			if v, ok := m.gauges[name]; ok {
-				metric.Value = Ptr(float64(v))
+				metric.Value = ptr(float64(v))
 				break
 			}
 			log.Printf("Client '%v': no such gauge metric", name)
@@ -212,7 +231,7 @@ func (m *metricset) Get(mtype string, name string) *model.Metrics {
 	case Count:
 		{
 			if v, ok := m.counters[name]; ok {
-				metric.Delta = Ptr(int64(v))
+				metric.Delta = ptr(int64(v))
 				break
 			}
 			log.Printf("Client '%v': no such counter metric", name)
