@@ -18,7 +18,8 @@ func main() {
 	}
 	log.Printf("server started on %v", cfg.ServerAddress)
 	storage := storage.Create(cfg)
-	r := handlers.NewRouter(&storage)
+
+	r := handlers.NewRouter(&storage,cfg.Key)
 	srv := &http.Server{
 		Addr:         cfg.ServerAddress,
 		ReadTimeout:  30 * time.Second,

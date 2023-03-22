@@ -176,8 +176,8 @@ func (m *metricset) updateSend(cfg *config) error {
 	for g := range m.gauges {
 		gmetric := m.get(Gauge, g)
 		if cfg.Key != "" {
-			signer := signer.NewSigner(gmetric, cfg.Key)
-			err := signer.Sign()
+			hashObject := signer.NewHashObject(cfg.Key)
+			err := hashObject.Sign(gmetric)
 			if err != nil {
 				log.Printf("Error send gauge Statistic: %v\n", err)
 				return err
@@ -195,10 +195,10 @@ func (m *metricset) updateSend(cfg *config) error {
 	for c := range m.counters {
 		cmetric := m.get(Count, c)
 		if cfg.Key != "" {
-			signer := signer.NewSigner(cmetric, cfg.Key)
-			err := signer.Sign()
+			hashObject := signer.NewHashObject(cfg.Key)
+			err := hashObject.Sign(cmetric)
 			if err != nil {
-				log.Printf("Error send gauge Statistic: %v\n", err)
+				log.Printf("Error send counters Statistic: %v\n", err)
 				return err
 			}
 		}

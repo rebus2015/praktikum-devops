@@ -61,7 +61,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage)
+			r := NewRouter(&metricStorage, cfg.Key)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -117,7 +117,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage)
+			r := NewRouter(&metricStorage, "")
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -165,7 +165,7 @@ func Test_getAllHandler(t *testing.T) {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage)
+			r := NewRouter(&metricStorage, "")
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -262,7 +262,7 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage)
+			r := NewRouter(&metricStorage, "")
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 

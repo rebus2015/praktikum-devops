@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
+	"github.com/rebus2015/praktikum-devops/internal/signer"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 )
 
@@ -55,7 +56,7 @@ const (
 	gauge   string = "gauge"
 )
 
-func NewRouter(metricStorage *storage.Repository) chi.Router {
+func NewRouter(metricStorage *storage.Repository, key string) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -66,16 +67,16 @@ func NewRouter(metricStorage *storage.Repository) chi.Router {
 	r.Get("/", GetAllHandler(*metricStorage))
 
 	r.Route("/update", func(r chi.Router) {
-		r.With(MetricContextBody).
-			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage))
+		r.With(MiddlewareGeneratorJSON(key)).
+			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, key))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(*metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.With(MetricContextBody).
-			Post("/", GetJSONMetricHandlerFunc(*metricStorage))
+		r.With(MiddlewareGeneratorJSON(key)).
+			Post("/", GetJSONMetricHandlerFunc(*metricStorage, key))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", GetMetricHandlerFunc(*metricStorage))
 		})
@@ -84,7 +85,7 @@ func NewRouter(metricStorage *storage.Repository) chi.Router {
 	return r
 }
 
-func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
 		if !ok {
@@ -139,6 +140,15 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.R
 			}
 		}
 
+		if key != "" {
+			hashObject := signer.NewHashObject(key)
+			err := hashObject.Sign(retval)
+			if err != nil {
+				log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v", err)
+				http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -176,7 +186,7 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
-func GetJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetJSONMetricHandlerFunc(metricStorage storage.Repository, key string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
 		if !ok {
@@ -215,6 +225,15 @@ func GetJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 			return
 		}
 
+		if key != "" {
+			hashObject := signer.NewHashObject(key)
+			err := hashObject.Sign(retval)
+			if err != nil {
+				log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v", err)
+				http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -227,43 +246,61 @@ func GetJSONMetricHandlerFunc(metricStorage storage.Repository) func(w http.Resp
 	}
 }
 
-func MetricContextBody(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var reader io.Reader
-		if r.Header.Get(`Content-Encoding`) == `gzip` {
-			gz, err := gzip.NewReader(r.Body)
-			if err != nil {
-				log.Printf("Failed to create gzip reader: %v", err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var reader io.Reader
+			if r.Header.Get(`Content-Encoding`) == `gzip` {
+				gz, err := gzip.NewReader(r.Body)
+				if err != nil {
+					log.Printf("Failed to create gzip reader: %v", err.Error())
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				reader = gz
+				defer gz.Close()
+			} else {
+				reader = r.Body
+			}
+
+			metric := &model.Metrics{}
+			decoder := json.NewDecoder(reader)
+			defer r.Body.Close()
+
+			if err := decoder.Decode(metric); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			reader = gz
-			defer gz.Close()
-		} else {
-			reader = r.Body
-		}
 
-		metric := &model.Metrics{}
-		decoder := json.NewDecoder(reader)
-		defer r.Body.Close()
+			if metric.ID == "" {
+				http.Error(w, "metric.ID is empty", http.StatusBadRequest)
+				return
+			}
+			if metric.MType == "" {
+				http.Error(w, "metric.MType is empty", http.StatusBadRequest)
+				return
+			}
+			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metric)
 
-		if err := decoder.Decode(metric); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if metric.ID == "" {
-			http.Error(w, "metric.ID is empty", http.StatusBadRequest)
-			return
-		}
-		if metric.MType == "" {
-			http.Error(w, "metric.MType is empty", http.StatusBadRequest)
-			return
-		}
-		log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metric)
-		ctx := context.WithValue(r.Context(), metricContextKey{}, metric)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+			if key != "" {
+				hashObject := signer.NewHashObject(key)
+				passed, err := hashObject.Verify(metric)
+				if err != nil {
+					log.Printf("Incoming Metric could not pass signature verification: %v, \nBody: %v, \n error: %v",
+						r.RequestURI, metric, err)
+					http.Error(w, fmt.Sprintf("Incoming Metric could not pass signature verification, error:%v", err),
+						http.StatusBadRequest)
+				}
+				if !passed {
+					log.Printf("Error: Incoming Metric could not pass signature verification: %v, Body: %v", r.RequestURI, metric)
+					http.Error(w, "Incoming Metric could not pass signature verification", http.StatusBadRequest)
+					return
+				}
+			}
+			ctx := context.WithValue(r.Context(), metricContextKey{}, metric)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 func GetMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
@@ -275,38 +312,37 @@ func GetMetricHandlerFunc(metricStorage storage.Repository) func(w http.Response
 
 		switch mtype {
 		case gauge:
-			{
-				g, err := metricStorage.GetGauge(name)
+
+			g, err := metricStorage.GetGauge(name)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				_, err = w.Write([]byte(err.Error()))
 				if err != nil {
-					w.WriteHeader(http.StatusNotFound)
-					_, err = w.Write([]byte(err.Error()))
-					if err != nil {
-						log.Printf("GetMetricHandlerFunc gauge writer.Write error:%v", err)
-					}
-					return
+					log.Printf("GetMetricHandlerFunc gauge writer.Write error:%v", err)
 				}
-				val = fmt.Sprintf("%v", g)
+				return
 			}
+			val = fmt.Sprintf("%v", g)
+
 		case counter:
-			{
-				c, err := metricStorage.GetCounter(name)
+
+			c, err := metricStorage.GetCounter(name)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				_, err = w.Write([]byte(err.Error()))
 				if err != nil {
-					w.WriteHeader(http.StatusNotFound)
-					_, err = w.Write([]byte(err.Error()))
-					if err != nil {
-						log.Printf("GetMetricHandlerFunc counter writer.Write error:%v", err)
-					}
-					return
+					log.Printf("GetMetricHandlerFunc counter writer.Write error:%v", err)
 				}
-				val = fmt.Sprintf("%v", c)
+				return
 			}
+			val = fmt.Sprintf("%v", c)
+
 		default:
-			{
-				w.WriteHeader(http.StatusNotImplemented)
-				_, err := w.Write([]byte("Unknown metric type"))
-				if err != nil {
-					log.Printf("GetMetricHandlerFunc unknown type writer.Write error:%v", err)
-				}
+
+			w.WriteHeader(http.StatusNotImplemented)
+			_, err := w.Write([]byte("Unknown metric type"))
+			if err != nil {
+				log.Printf("GetMetricHandlerFunc unknown type writer.Write error:%v", err)
 			}
 		}
 
