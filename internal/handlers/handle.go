@@ -85,11 +85,16 @@ func NewRouter(metricStorage *storage.Repository, key string) chi.Router {
 	return r
 }
 
-func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) func(w http.ResponseWriter, r *http.Request) {
+func UpdateJSONMetricHandlerFunc(
+	metricStorage storage.Repository,
+	key string,
+) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
 		if !ok {
-			log.Printf("Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'")
+			log.Printf(
+				"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+			)
 			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
 			return
 		}
@@ -111,7 +116,11 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) f
 				delta, err := metricStorage.IncCounter(metric.ID, metric.Delta)
 				if err != nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Update counter error: %v", err)
-					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
+					http.Error(
+						w,
+						fmt.Sprintf("Update counter error: %v", err),
+						http.StatusInternalServerError,
+					)
 					return
 				}
 				retval.Delta = &delta
@@ -127,7 +136,11 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) f
 				value, err := metricStorage.SetGauge(metric.ID, metric.Value)
 				if err != nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Update gauge error: %v", err)
-					http.Error(w, fmt.Sprintf("Update counter error: %v", err), http.StatusInternalServerError)
+					http.Error(
+						w,
+						fmt.Sprintf("Update counter error: %v", err),
+						http.StatusInternalServerError,
+					)
 					return
 				}
 				retval.Value = &value
@@ -144,7 +157,10 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) f
 			hashObject := signer.NewHashObject(key)
 			err := hashObject.Sign(retval)
 			if err != nil {
-				log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v", err)
+				log.Printf(
+					"Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v",
+					err,
+				)
 				http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
 			}
 		}
@@ -161,7 +177,9 @@ func UpdateJSONMetricHandlerFunc(metricStorage storage.Repository, key string) f
 	}
 }
 
-func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandlerFunc(
+	metricStorage storage.Repository,
+) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		mtype := chi.URLParam(r, "mtype")
 		name := chi.URLParam(r, "name")
@@ -186,7 +204,10 @@ func UpdateMetricHandlerFunc(metricStorage storage.Repository) func(w http.Respo
 	}
 }
 
-func GetJSONMetricHandlerFunc(metricStorage storage.Repository, key string) func(w http.ResponseWriter, r *http.Request) {
+func GetJSONMetricHandlerFunc(
+	metricStorage storage.Repository,
+	key string,
+) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
 		if !ok {
@@ -229,7 +250,10 @@ func GetJSONMetricHandlerFunc(metricStorage storage.Repository, key string) func
 			hashObject := signer.NewHashObject(key)
 			err := hashObject.Sign(retval)
 			if err != nil {
-				log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v", err)
+				log.Printf(
+					"Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v",
+					err,
+				)
 				http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
 			}
 		}
@@ -286,14 +310,32 @@ func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
 				hashObject := signer.NewHashObject(key)
 				passed, err := hashObject.Verify(metric)
 				if err != nil {
-					log.Printf("Incoming Metric could not pass signature verification: %v, \nBody: %v, \n error: %v",
-						r.RequestURI, metric, err)
-					http.Error(w, fmt.Sprintf("Incoming Metric could not pass signature verification, error:%v", err),
-						http.StatusBadRequest)
+					log.Printf(
+						"Incoming Metric could not pass signature verification: %v, \nBody: %v, \n error: %v",
+						r.RequestURI,
+						metric,
+						err,
+					)
+					http.Error(
+						w,
+						fmt.Sprintf(
+							"Incoming Metric could not pass signature verification, error:%v",
+							err,
+						),
+						http.StatusBadRequest,
+					)
 				}
 				if !passed {
-					log.Printf("Error: Incoming Metric could not pass signature verification: %v, Body: %v", r.RequestURI, metric)
-					http.Error(w, "Incoming Metric could not pass signature verification", http.StatusBadRequest)
+					log.Printf(
+						"Error: Incoming Metric could not pass signature verification: %v, Body: %v",
+						r.RequestURI,
+						metric,
+					)
+					http.Error(
+						w,
+						"Incoming Metric could not pass signature verification",
+						http.StatusBadRequest,
+					)
 					return
 				}
 			}
@@ -303,7 +345,9 @@ func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
 	}
 }
 
-func GetMetricHandlerFunc(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetMetricHandlerFunc(
+	metricStorage storage.Repository,
+) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := chi.URLParam(r, "name")
 		mtype := chi.URLParam(r, "mtype")
