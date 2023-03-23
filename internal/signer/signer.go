@@ -26,6 +26,9 @@ func NewHashObject(key string) Signer {
 
 func (s *HashObject) Sign(m *model.Metrics) error {
 	src, err := srcString(m)
+	if err != nil {
+		return err
+	}
 	h, err := hash(src, s.key)
 	if err != nil {
 		return err
@@ -36,6 +39,9 @@ func (s *HashObject) Sign(m *model.Metrics) error {
 
 func (s *HashObject) Verify(m *model.Metrics) (bool, error) {
 	src, err := srcString(m)
+	if err != nil {
+		return false, err
+	}
 	h, err := hash(src, s.key)
 	if err != nil {
 		return false, err
