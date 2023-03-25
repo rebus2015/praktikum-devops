@@ -16,7 +16,7 @@ func main() {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
 	}
-	log.Printf("server started on %v", cfg.ServerAddress)
+	log.Printf("server started on %v with key: '%v'", cfg.ServerAddress, cfg.Key)
 	storage := storage.Create(cfg)
 
 	r := handlers.NewRouter(&storage, cfg.Key)
