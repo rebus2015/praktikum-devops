@@ -306,7 +306,7 @@ func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
 			}
 			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metric)
 
-			if key != "" {
+			if key != "" && metric.Hash != "" {
 				hashObject := signer.NewHashObject(key)
 				passed, err := hashObject.Verify(metric)
 				if err != nil {
