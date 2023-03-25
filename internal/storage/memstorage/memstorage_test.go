@@ -188,6 +188,18 @@ func TestMemStorage_AddGauge(t *testing.T) {
 				floatval: 234,
 			},
 		},
+		{
+			"shorten test",
+			repo{
+				map[string]float64{"g1": -23},
+				map[string]int64{"c1": 0},
+			},
+			args{
+				name:     "gm",
+				val:      "44.1200",
+				floatval: 44.1200,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

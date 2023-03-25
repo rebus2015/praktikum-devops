@@ -15,7 +15,7 @@ func ptr[T any](v T) *T {
 }
 
 func (g GMetric) String() string {
-	x := fmt.Sprintf("%v", g.Val)
+	x := fmt.Sprintf("%g", g.Val)
 	return x
 }
 

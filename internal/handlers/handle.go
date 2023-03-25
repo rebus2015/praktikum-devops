@@ -366,7 +366,7 @@ func GetMetricHandlerFunc(
 				}
 				return
 			}
-			val = fmt.Sprintf("%v", g)
+			val = fmt.Sprintf("%.3f", g)
 
 		case counter:
 
