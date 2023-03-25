@@ -66,13 +66,13 @@ func srcString(model *model.Metrics) (string, error) {
 			log.Printf("metric of type '%v' error trying to Sign metric, model.Value == nil", model.MType)
 			return "", fmt.Errorf("metric of type '%v' error trying to Sign metric, model.Value == nil", model.MType)
 		}
-		return fmt.Sprintf("%s:gauge:%f", model.ID, *model.Value), nil
+		return fmt.Sprintf("%s:%s:%f", model.ID, model.MType, *model.Value), nil
 	case "counter":
 		if model.Delta == nil {
 			log.Printf("metric of type '%v' error trying to Sign metric, model.Delta == nil", model.MType)
 			return "", fmt.Errorf("metric of type '%v' error trying to Sign metric, model.Delta == nil", model.MType)
 		}
-		return fmt.Sprintf("%s:gauge:%d", model.ID, *model.Delta), nil
+		return fmt.Sprintf("%s:%s:%d", model.ID, model.MType, *model.Delta), nil
 	default:
 		log.Printf("unknown metric type exception '%v' trying to Sign metric", model.MType)
 		return "", fmt.Errorf("unknown metric type exception '%v' trying to Sign metric", model.MType)
