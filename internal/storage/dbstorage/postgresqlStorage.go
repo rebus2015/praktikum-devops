@@ -12,9 +12,9 @@ type PostgreSQLStorage struct {
 	connection *sql.DB
 }
 
-type SQLStorage interface{
+type SQLStorage interface {
 	Ping() error
-	Close() 
+	Close()
 }
 
 func NewPostgreSQLStorage(connectionString string) (*PostgreSQLStorage, error) {
