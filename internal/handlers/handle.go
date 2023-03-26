@@ -71,7 +71,7 @@ func NewRouter(
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
 	r.Get("/", GetAllHandler(*metricStorage))
-	r.Get("/Ping", GetDBConnState(postgreStorage))
+	r.Get("/ping", GetDBConnState(postgreStorage))
 	r.Route("/update", func(r chi.Router) {
 		r.With(MiddlewareGeneratorJSON(cfg.Key)).
 			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))

@@ -26,6 +26,7 @@ func main() {
 		log.Panicf("Error creating dbStorage: %v", err)
 		return
 	}
+	log.Printf("Created dbStorage: %v", cfg.ConnectionString)
 	// defer sqlDBStorage.Close()
 
 	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
