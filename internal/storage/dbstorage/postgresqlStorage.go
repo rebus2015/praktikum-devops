@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl
 )
 
 type PostgreSQLStorage struct {
@@ -16,7 +16,7 @@ func NewPostgreSQLStorage(connectionString string) (*PostgreSQLStorage, error) {
 	pgStore := PostgreSQLStorage{}
 	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
-		log.Printf("Unable to connect to database because %s", err)
+		log.Printf("Unable to open connection to database connection:'%v'  error %s", connectionString, err)
 		return &pgStore, fmt.Errorf("unable to connect to database because %w", err)
 	}
 	pgStore.connection = db
