@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	ServerAddress string        `env:"ADDRESS"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"` // 0 - синхронная запись
-	StoreFile     string        `env:"STORE_FILE"`     // пустое значние отключает запись на диск
-	Restore       bool          `env:"RESTORE"`        // загружать начальные значениея из файла
-	Key           string        `env:"KEY"`            // Ключ для создания подписи сообщения
+	ServerAddress    string        `env:"ADDRESS"`
+	StoreInterval    time.Duration `env:"STORE_INTERVAL"` // 0 - синхронная запись
+	StoreFile        string        `env:"STORE_FILE"`     // пустое значние отключает запись на диск
+	Restore          bool          `env:"RESTORE"`        // загружать начальные значениея из файла
+	Key              string        `env:"KEY"`            // Ключ для создания подписи сообщения
+	ConnectionString string        `env:"DATABASE_DSN"`   // Cтрока подключения к БД
 }
 
 func GetConfig() (*Config, error) {
@@ -23,6 +24,8 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.StoreFile, "f", "/tmp/devops-metrics-db.json", "Metrics repository file path")
 	flag.BoolVar(&conf.Restore, "r", true, "Restore metric values from file before start")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
+	flag.StringVar(&conf.ConnectionString, "d", "postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable",
+		"Database connection string(PostgreSql)")
 
 	flag.Parse()
 

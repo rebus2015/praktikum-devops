@@ -13,9 +13,11 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/signer"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 )
 
 const templ = `{{define "metrics"}}
@@ -56,7 +58,11 @@ const (
 	gauge   string = "gauge"
 )
 
-func NewRouter(metricStorage *storage.Repository, key string) chi.Router {
+func NewRouter(
+	metricStorage *storage.Repository,
+	postgreStorage *dbstorage.PostgreSQLStorage,
+	cfg config.Config,
+) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -65,24 +71,43 @@ func NewRouter(metricStorage *storage.Repository, key string) chi.Router {
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
 	r.Get("/", GetAllHandler(*metricStorage))
-
+	r.Get("/Ping", GetDBConnState(*postgreStorage))
 	r.Route("/update", func(r chi.Router) {
-		r.With(MiddlewareGeneratorJSON(key)).
-			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, key))
+		r.With(MiddlewareGeneratorJSON(cfg.Key)).
+			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(*metricStorage))
 		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.With(MiddlewareGeneratorJSON(key)).
-			Post("/", GetJSONMetricHandlerFunc(*metricStorage, key))
+		r.With(MiddlewareGeneratorJSON(cfg.Key)).
+			Post("/", GetJSONMetricHandlerFunc(*metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", GetMetricHandlerFunc(*metricStorage))
 		})
 	})
 
 	return r
+}
+
+func GetDBConnState(
+	sqlStorage dbstorage.PostgreSQLStorage,
+) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// При успешной проверке хендлер должен вернуть HTTP-статус 200 OK, при неуспешной — 500 Internal Server Error.
+		if err := sqlStorage.Ping(); err != nil {
+			log.Printf("Cannot ping database because %s", err)
+			http.Error(
+				w,
+				fmt.Sprintf("Cannot ping database %v", err),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		// устанавливаем статус-код 200
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func UpdateJSONMetricHandlerFunc(
