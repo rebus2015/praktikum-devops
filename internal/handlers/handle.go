@@ -60,7 +60,7 @@ const (
 
 func NewRouter(
 	metricStorage *storage.Repository,
-	postgreStorage *dbstorage.PostgreSQLStorage,
+	postgreStorage dbstorage.SQLStorage,
 	cfg config.Config,
 ) chi.Router {
 	r := chi.NewRouter()
@@ -71,7 +71,7 @@ func NewRouter(
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
 	r.Get("/", GetAllHandler(*metricStorage))
-	r.Get("/Ping", GetDBConnState(*postgreStorage))
+	r.Get("/Ping", GetDBConnState(postgreStorage))
 	r.Route("/update", func(r chi.Router) {
 		r.With(MiddlewareGeneratorJSON(cfg.Key)).
 			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
@@ -92,7 +92,7 @@ func NewRouter(
 }
 
 func GetDBConnState(
-	sqlStorage dbstorage.PostgreSQLStorage,
+	sqlStorage dbstorage.SQLStorage,
 ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// При успешной проверке хендлер должен вернуть HTTP-статус 200 OK, при неуспешной — 500 Internal Server Error.

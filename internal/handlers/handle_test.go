@@ -17,6 +17,13 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
+type testSQLdbStorage struct{}
+
+func (db *testSQLdbStorage) Ping() error {
+	return nil
+}
+func (db *testSQLdbStorage) Close() {}
+
 func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	type want struct {
 		code int
@@ -56,12 +63,13 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	cfg := config.Config{StoreFile: ""}
+	cfg := config.Config{StoreFile: "", ConnectionString: ""}
 	metricStorage := storage.Create(&cfg)
+	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage, nil, cfg)
+			r := NewRouter(&metricStorage, dbStorage, cfg)
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -113,11 +121,11 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	}
 
 	metricStorage := storage.Create(&config.Config{StoreFile: ""})
-
+	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage, nil, config.Config{})
+			r := NewRouter(&metricStorage, dbStorage, config.Config{})
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -149,6 +157,7 @@ func Test_getAllHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		metricStorage := storage.Create(&config.Config{StoreFile: ""})
+		dbStorage := &testSQLdbStorage{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.IncCounter(c.Name, c.Val)
 			if err != nil {
@@ -165,7 +174,7 @@ func Test_getAllHandler(t *testing.T) {
 
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage, nil, config.Config{})
+			r := NewRouter(&metricStorage, dbStorage, config.Config{})
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
@@ -258,11 +267,11 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	}
 
 	metricStorage := storage.Create(&config.Config{StoreFile: ""})
-
+	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
-			r := NewRouter(&metricStorage, nil, config.Config{})
+			r := NewRouter(&metricStorage, dbStorage, config.Config{})
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 

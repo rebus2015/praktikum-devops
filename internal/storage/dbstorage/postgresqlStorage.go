@@ -12,6 +12,11 @@ type PostgreSQLStorage struct {
 	connection *sql.DB
 }
 
+type SQLStorage interface{
+	Ping() error
+	Close() 
+}
+
 func NewPostgreSQLStorage(connectionString string) (*PostgreSQLStorage, error) {
 	pgStore := PostgreSQLStorage{}
 	db, err := sql.Open("pgx", connectionString)
