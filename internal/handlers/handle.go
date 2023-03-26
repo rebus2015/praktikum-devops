@@ -96,7 +96,7 @@ func GetDBConnState(
 ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// При успешной проверке хендлер должен вернуть HTTP-статус 200 OK, при неуспешной — 500 Internal Server Error.
-		if err := sqlStorage.Ping(); err != nil {
+		if err := sqlStorage.Ping(r.Context()); err != nil {
 			log.Printf("Cannot ping database because %s", err)
 			http.Error(
 				w,

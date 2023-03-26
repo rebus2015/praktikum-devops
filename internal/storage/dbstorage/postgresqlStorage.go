@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"context"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl
 )
@@ -13,7 +14,7 @@ type PostgreSQLStorage struct {
 }
 
 type SQLStorage interface {
-	Ping() error
+	Ping(ctx context.Context) error
 	Close()
 }
 
@@ -32,8 +33,8 @@ func (pgs *PostgreSQLStorage) Close() {
 	pgs.connection.Close()
 }
 
-func (pgs *PostgreSQLStorage) Ping() error {
-	if err := pgs.connection.Ping(); err != nil {
+func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
+	if err := pgs.connection.PingContext(ctx); err != nil {
 		log.Printf("Cannot ping database because %s", err)
 		return fmt.Errorf("cannot ping database because %w", err)
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -19,7 +20,7 @@ import (
 
 type testSQLdbStorage struct{}
 
-func (db *testSQLdbStorage) Ping() error {
+func (db *testSQLdbStorage) Ping(ctx context.Context) error {
 	return nil
 }
 func (db *testSQLdbStorage) Close() {}
