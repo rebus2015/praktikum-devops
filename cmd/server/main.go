@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
 func main() {
@@ -18,9 +21,23 @@ func main() {
 		return
 	}
 	log.Printf("server started on %v with key: '%v'", cfg.ServerAddress, cfg.Key)
-	storage := storage.Create(cfg)
 
-	sqlDBStorage, err := dbstorage.NewPostgreSQLStorage(cfg.ConnectionString)
+	fs := filestorage.NewStorage(cfg)
+	var ms = new(memstorage.MemStorage)
+	if cfg.Restore && cfg.StoreFile != "" {
+		ms = fs.Restore(cfg.StoreFile)
+	} else {
+		ms = memstorage.NewStorage()
+	}
+	if cfg.StoreInterval != 0 {
+		go fs.SaveTicker(cfg.StoreInterval, ms)
+	}
+
+	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, *fs)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sqlDBStorage, err := dbstorage.NewPostgreSQLStorage(ctx, cfg.ConnectionString)
 	if err != nil {
 		log.Printf("Error creating dbStorage: %v", err)
 		log.Panicf("Error creating dbStorage: %v", err)
@@ -36,5 +53,9 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		Handler:      r,
 	}
-	log.Fatal(srv.ListenAndServe())
+	err = srv.ListenAndServe()
+	if err != nil {
+		log.Printf("server exited with %v", err)
+	}
+
 }

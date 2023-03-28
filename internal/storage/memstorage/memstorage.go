@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
-
-	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
 func ptr[T any](v T) *T {
@@ -22,26 +19,6 @@ func (g GMetric) String() string {
 func (c CMetric) String() string {
 	x := fmt.Sprintf("%v", c.Val)
 	return x
-}
-
-func (g *GMetric) Metric() *model.Metrics {
-	m := model.Metrics{
-		ID:    g.Name,
-		MType: "gauge",
-		Delta: new(int64),
-		Value: ptr(g.Val),
-	}
-	return &m
-}
-
-func (c *CMetric) Metric() *model.Metrics {
-	m := model.Metrics{
-		ID:    c.Name,
-		MType: "counter",
-		Delta: ptr(c.Val),
-		Value: new(float64),
-	}
-	return &m
 }
 
 func (c *CMetric) TryParse(cname string, cval string) error {
@@ -82,18 +59,12 @@ type CMetric struct {
 type MemStorage struct {
 	Gauges   map[string]float64
 	Counters map[string]int64
-	Mux      sync.RWMutex
-}
-
-func (m *MemStorage) Storage() *MemStorage {
-	return m
 }
 
 func NewStorage() *MemStorage {
 	return &MemStorage{
 		map[string]float64{},
 		map[string]int64{},
-		sync.RWMutex{},
 	}
 }
 
@@ -116,8 +87,6 @@ func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
 		return 0, errors.New("unexpected gauge value")
 	}
 
-	m.Mux.Lock()
-	defer m.Mux.Unlock()
 	m.Gauges[g.Name] = g.Val
 	return m.Gauges[g.Name], nil
 }
@@ -140,8 +109,6 @@ func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
 	default:
 		return 0, errors.New("unexpected counter value")
 	}
-	m.Mux.Lock()
-	defer m.Mux.Unlock()
 	if _, ok := m.Counters[c.Name]; !ok {
 		m.Counters[c.Name] = c.Val
 	} else {
@@ -152,8 +119,6 @@ func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
 }
 
 func (m *MemStorage) GetCounter(name string) (int64, error) {
-	m.Mux.RLock()
-	defer m.Mux.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
 		return 0, fmt.Errorf("counter with name '%v' is not found", name)
 	}
@@ -161,46 +126,13 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 }
 
 func (m *MemStorage) GetGauge(name string) (float64, error) {
-	m.Mux.RLock()
-	defer m.Mux.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
 		return 0, fmt.Errorf("cauge with name '%v' is not found", name)
 	}
 	return m.Gauges[name], nil
 }
 
-func (m *MemStorage) FillMetric(data *model.Metrics) error {
-	m.Mux.RLock()
-	defer m.Mux.RUnlock()
-	switch data.MType {
-	case "counter":
-		{
-			if v, ok := m.Counters[data.ID]; ok {
-				data.Delta = ptr(v)
-				break
-			}
-			return fmt.Errorf("%v: Counter with name is not found", data.ID)
-		}
-	case "gauge":
-		{
-			if v, ok := m.Gauges[data.ID]; ok {
-				data.Value = ptr(v)
-				break
-			}
-			return fmt.Errorf("%v: Gauge with name is not found", data.ID)
-		}
-	default:
-		{
-			return fmt.Errorf("%v: not supported metric type", data.MType)
-		}
-	}
-
-	return nil
-}
-
 func (m *MemStorage) GetView() ([]MetricStr, error) {
-	m.Mux.RLock()
-	defer m.Mux.RUnlock()
 	view := []MetricStr{}
 	keys := []string{}
 	for k := range m.Gauges {

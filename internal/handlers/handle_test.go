@@ -15,6 +15,7 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
@@ -65,7 +66,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 		},
 	}
 	cfg := config.Config{StoreFile: "", ConnectionString: ""}
-	metricStorage := storage.Create(&cfg)
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), *filestorage.NewStorage(&cfg))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -121,7 +122,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.Create(&config.Config{StoreFile: ""})
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), *filestorage.NewStorage(&config.Config{}))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -157,17 +158,17 @@ func Test_getAllHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		metricStorage := storage.Create(&config.Config{StoreFile: ""})
+		var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), *filestorage.NewStorage(&config.Config{}))
 		dbStorage := &testSQLdbStorage{}
 		for _, c := range tt.counters {
-			_, err := metricStorage.IncCounter(c.Name, c.Val)
+			_, err := metricStorage.AddCounter(c.Name, c.Val)
 			if err != nil {
 				log.Printf("Test_GetAllHandler error:%v", err)
 			}
 		}
 
 		for _, g := range tt.gauges {
-			_, err := metricStorage.SetGauge(g.Name, g.Val)
+			_, err := metricStorage.AddGauge(g.Name, g.Val)
 			if err != nil {
 				log.Printf("Test_GetAllHandler error:%v", err)
 			}
@@ -267,7 +268,7 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		},
 	}
 
-	metricStorage := storage.Create(&config.Config{StoreFile: ""})
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), *filestorage.NewStorage(&config.Config{}))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест

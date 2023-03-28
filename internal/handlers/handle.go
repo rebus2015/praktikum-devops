@@ -138,7 +138,7 @@ func UpdateJSONMetricHandlerFunc(
 					return
 				}
 
-				delta, err := metricStorage.IncCounter(metric.ID, metric.Delta)
+				delta, err := metricStorage.AddCounter(metric.ID, metric.Delta)
 				if err != nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Update counter error: %v", err)
 					http.Error(
@@ -158,7 +158,7 @@ func UpdateJSONMetricHandlerFunc(
 					return
 				}
 
-				value, err := metricStorage.SetGauge(metric.ID, metric.Value)
+				value, err := metricStorage.AddGauge(metric.ID, metric.Value)
 				if err != nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Update gauge error: %v", err)
 					http.Error(
@@ -212,9 +212,9 @@ func UpdateMetricHandlerFunc(
 		var err error
 		switch mtype {
 		case gauge:
-			_, err = metricStorage.SetGauge(name, val)
+			_, err = metricStorage.AddGauge(name, val)
 		case counter:
-			_, err = metricStorage.IncCounter(name, val)
+			_, err = metricStorage.AddCounter(name, val)
 		default:
 			{
 				http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
