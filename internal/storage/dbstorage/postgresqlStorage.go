@@ -5,17 +5,28 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl
+
+	"github.com/rebus2015/praktikum-devops/internal/storage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
+
+var _ storage.SecondaryStorage = new(PostgreSQLStorage)
 
 type PostgreSQLStorage struct {
 	connection *sql.DB
+	Sync       bool
 }
 
 type SQLStorage interface {
 	Ping(ctx context.Context) error
 	Close()
+}
+
+func (pgs *PostgreSQLStorage) SyncMode() bool {
+	return pgs.Sync
 }
 
 func NewPostgreSQLStorage(ctx context.Context, connectionString string) (*PostgreSQLStorage, error) {
@@ -36,6 +47,24 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 		return fmt.Errorf("cannot ping database because %w", err)
 	}
 	return nil
+}
+
+func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
+	return nil
+}
+
+func (pgs *PostgreSQLStorage) Restore(sf string) *memstorage.MemStorage {
+	return new(memstorage.MemStorage)
+}
+
+func (pgs *PostgreSQLStorage) SaveTicker(storeint time.Duration, ms *memstorage.MemStorage) {
+	ticker := time.NewTicker(storeint)
+	for range ticker.C {
+		errs := pgs.Save(ms)
+		if errs != nil {
+			log.Printf("FileStorage Save error: %v", errs)
+		}
+	}
 }
 
 func restoreDB(ctx context.Context, connectionString string) (*sql.DB, error) {

@@ -22,7 +22,7 @@ func main() {
 	}
 	log.Printf("server started on %v with key: '%v'", cfg.ServerAddress, cfg.Key)
 
-	fs := filestorage.NewStorage(cfg)
+	var fs  storage.SecondaryStorage = filestorage.NewStorage(cfg)
 	var ms = new(memstorage.MemStorage)
 	if cfg.Restore && cfg.StoreFile != "" {
 		ms = fs.Restore(cfg.StoreFile)
@@ -33,7 +33,7 @@ func main() {
 		go fs.SaveTicker(cfg.StoreInterval, ms)
 	}
 
-	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, *fs)
+	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, fs)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

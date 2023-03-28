@@ -4,23 +4,22 @@ import (
 	"log"
 	"sync"
 
-	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
 type RepositoryWrapper struct {
-	memstorage  memstorage.MemStorage
-	filestorage filestorage.FileStorage
-	mux         sync.RWMutex
+	memstorage       memstorage.MemStorage
+	secondarystorage SecondaryStorage
+	mux              sync.RWMutex
 }
 
 var _ Repository = new(RepositoryWrapper)
 
-func NewRepositoryWrapper(mes memstorage.MemStorage, fs filestorage.FileStorage) *RepositoryWrapper {
+func NewRepositoryWrapper(mes memstorage.MemStorage, sec SecondaryStorage) *RepositoryWrapper {
 	return &RepositoryWrapper{
-		memstorage:  mes,
-		filestorage: fs,
-		mux:         sync.RWMutex{},
+		memstorage:       mes,
+		secondarystorage: sec,
+		mux:              sync.RWMutex{},
 	}
 }
 
@@ -28,8 +27,8 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	retval, err := rw.memstorage.SetGauge(name, val)
-	if rw.filestorage.SyncMode {
-		errs := rw.filestorage.Save(&rw.memstorage)
+	if rw.secondarystorage.SyncMode() {
+		errs := rw.secondarystorage.Save(&rw.memstorage)
 		if errs != nil {
 			log.Printf("FileStorage Save error: %v", err)
 		}
@@ -41,8 +40,8 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	retval, err := rw.memstorage.IncCounter(name, val)
-	if rw.filestorage.SyncMode {
-		errs := rw.filestorage.Save(&rw.memstorage)
+	if rw.secondarystorage.SyncMode() {
+		errs := rw.secondarystorage.Save(&rw.memstorage)
 		if errs != nil {
 			log.Printf("FileStorage Save error: %v", err)
 		}

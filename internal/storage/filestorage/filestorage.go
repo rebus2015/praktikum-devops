@@ -8,19 +8,26 @@ import (
 	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
+	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
 type FileStorage struct {
 	StoreFile string
-	SyncMode  bool
+	Sync      bool
 }
+
+var _ storage.SecondaryStorage = new(FileStorage)
 
 func NewStorage(c *config.Config) *FileStorage {
 	return &FileStorage{
 		c.StoreFile,
 		c.StoreInterval == 0,
 	}
+}
+
+func (f *FileStorage) SyncMode() bool {
+	return f.Sync
 }
 
 func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
