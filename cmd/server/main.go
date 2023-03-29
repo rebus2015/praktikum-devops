@@ -53,6 +53,7 @@ func main() {
 	sqlDBStorage, err := dbstorage.NewStorage(ctx, cfg.ConnectionString, false)
 	if err != nil {
 		log.Printf("Error creating dbStorage: %v", err)
+		//  log.Panicf("Error creating dbStorage: %v", err)
 	}
 	log.Printf("Created dbStorage: %v", cfg.ConnectionString)
 	defer sqlDBStorage.Close()

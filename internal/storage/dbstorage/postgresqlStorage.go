@@ -44,6 +44,9 @@ func (pgs *PostgreSQLStorage) Close() {
 }
 
 func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
+	if pgs == nil {
+		return fmt.Errorf("cannot ping database because connection is nil")
+	}
 	if err := pgs.connection.PingContext(ctx); err != nil {
 		log.Printf("Cannot ping database because %s", err)
 		return fmt.Errorf("cannot ping database because %w", err)
