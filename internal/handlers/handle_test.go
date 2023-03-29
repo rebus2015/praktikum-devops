@@ -66,7 +66,8 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 		},
 	}
 	cfg := config.Config{StoreFile: "", ConnectionString: ""}
-	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), filestorage.NewStorage(&cfg))
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+		*memstorage.NewStorage(), filestorage.NewStorage(&cfg))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -122,7 +123,8 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 		},
 	}
 
-	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+		*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -158,7 +160,8 @@ func Test_getAllHandler(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+			*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
 		dbStorage := &testSQLdbStorage{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.AddCounter(c.Name, c.Val)
@@ -268,7 +271,8 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		},
 	}
 
-	var metricStorage storage.Repository = storage.NewRepositoryWrapper(*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+		*memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
 	dbStorage := &testSQLdbStorage{}
 	for _, tt := range tests {
 		// запускаем каждый тест

@@ -3,6 +3,7 @@ package filestorage
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -34,7 +35,7 @@ func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
 	writer, err := newWriter(f.StoreFile)
 	if err != nil {
 		log.Printf("Save metrics to file '%s' error: %v", f.StoreFile, err)
-		log.Fatal(err)
+		return fmt.Errorf("Save metrics to file '%s' error:%w", f.StoreFile, err)
 	}
 
 	err = writer.encoder.Encode(ms)
@@ -45,30 +46,30 @@ func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
 	return nil
 }
 
-func (f *FileStorage) Restore(sf string) *memstorage.MemStorage {
-	reader, err := newReader(sf)
+func (f *FileStorage) Restore() (*memstorage.MemStorage, error) {
+	reader, err := newReader(f.StoreFile)
 	if err != nil {
-		log.Printf("Restore metrics from file '%s' reader error: %v", sf, err)
-		log.Fatal(err)
+		log.Printf("Restore metrics from file '%s' reader error: %v", f.StoreFile, err)
+		return nil, fmt.Errorf("Restore metrics from file '%s' reader error: %w", f.StoreFile, err)
 	}
 
-	checkFile, err := os.Stat(sf)
+	checkFile, err := os.Stat(f.StoreFile)
 	if err != nil {
-		log.Printf("Restore metrics from file '%s' Stat error: %v", sf, err)
-		log.Fatal(err)
+		log.Printf("Restore metrics from file '%s' Stat error: %v", f.StoreFile, err)
+		return nil, fmt.Errorf("Restore metrics from file '%s' reader error: %w", f.StoreFile, err)
 	}
 
 	size := checkFile.Size()
 	if size == 0 {
-		log.Printf("Metrics store file '%s' is emmpty", sf)
-		return memstorage.NewStorage()
+		log.Printf("Metrics store file '%s' is emmpty", f.StoreFile)
+		return memstorage.NewStorage(), nil
 	}
 	restored, err := reader.readStorage()
 	if err != nil {
-		log.Printf("Restore metrics from file '%s' ReadStorage error: %v", sf, err)
-		log.Fatal(err)
+		log.Printf("Restore metrics from file '%s' ReadStorage error: %v", f.StoreFile, err)
+		return nil, fmt.Errorf("Restore metrics from file '%s' ReadStorage error: %w", f.StoreFile, err)
 	}
-	return restored
+	return restored, nil
 }
 
 func (f *FileStorage) SaveTicker(storeint time.Duration, ms *memstorage.MemStorage) {

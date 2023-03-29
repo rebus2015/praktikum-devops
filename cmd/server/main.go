@@ -21,13 +21,27 @@ func main() {
 		return
 	}
 	log.Printf("server started on %v with key: '%v'", cfg.ServerAddress, cfg.Key)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	var fs  storage.SecondaryStorage = filestorage.NewStorage(cfg)
-	var ms = new(memstorage.MemStorage)
-	if cfg.Restore && cfg.StoreFile != "" {
-		ms = fs.Restore(cfg.StoreFile)
-	} else {
-		ms = memstorage.NewStorage()
+	var fs storage.SecondaryStorage
+	switch {
+	case cfg.ConnectionString != "":
+		fs, err = dbstorage.NewStorage(ctx, cfg.ConnectionString, cfg.StoreInterval == 0)
+		if err != nil {
+			log.Panicf("Error creating dbstorage %v", err)
+		}
+	default:
+		if cfg.StoreFile != "" {
+			fs = filestorage.NewStorage(cfg)
+		}
+	}
+
+	ms := memstorage.NewStorage()
+	if cfg.Restore && fs != nil {
+		ms, err = fs.Restore()
+		if err != nil {
+			log.Panicf("Error restoring data %v", err)
+		}
 	}
 	if cfg.StoreInterval != 0 {
 		go fs.SaveTicker(cfg.StoreInterval, ms)
@@ -35,16 +49,13 @@ func main() {
 
 	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, fs)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sqlDBStorage, err := dbstorage.NewPostgreSQLStorage(ctx, cfg.ConnectionString)
+	sqlDBStorage, err := dbstorage.NewStorage(ctx, cfg.ConnectionString, false)
 	if err != nil {
 		log.Printf("Error creating dbStorage: %v", err)
-		log.Panicf("Error creating dbStorage: %v", err)
-		return
 	}
 	log.Printf("Created dbStorage: %v", cfg.ConnectionString)
-	// defer sqlDBStorage.Close()
+	defer sqlDBStorage.Close()
 
 	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
@@ -57,5 +68,4 @@ func main() {
 	if err != nil {
 		log.Printf("server exited with %v", err)
 	}
-
 }

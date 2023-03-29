@@ -16,7 +16,7 @@ type Repository interface {
 
 type SecondaryStorage interface {
 	Save(ms *memstorage.MemStorage) error
-	Restore(sf string) *memstorage.MemStorage
+	Restore() (*memstorage.MemStorage, error)
 	SaveTicker(storeint time.Duration, ms *memstorage.MemStorage)
 	SyncMode() bool
 }
