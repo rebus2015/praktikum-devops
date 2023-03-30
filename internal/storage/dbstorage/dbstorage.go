@@ -7,7 +7,7 @@ const (
             name text, 
             type varchar(10), 
             value double precision,
-            delta integer,
+            delta bigint,
  UNIQUE (name,type)
         );
 
