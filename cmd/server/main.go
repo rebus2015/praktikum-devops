@@ -33,6 +33,7 @@ func main() {
 		}
 		fs = storage.SecondaryStorage(db)
 		sqlDBStorage = dbstorage.SQLStorage(db)
+		defer sqlDBStorage.Close()
 	default:
 		if cfg.StoreFile != "" {
 			fs = filestorage.NewStorage(cfg)
@@ -57,7 +58,6 @@ func main() {
 		//  log.Panicf("Error creating dbStorage: %v", err)
 	}
 	log.Printf("Created dbStorage: %v", cfg.ConnectionString)
-	defer sqlDBStorage.Close()
 
 	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
