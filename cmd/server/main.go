@@ -20,16 +20,19 @@ func main() {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
 	}
-	log.Printf("server started on %v with key: '%v'", cfg.ServerAddress, cfg.Key)
+	log.Printf("server started on %v with key: '%v', ", cfg.ServerAddress, cfg.Key)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var fs storage.SecondaryStorage
+	var sqlDBStorage dbstorage.SQLStorage
 	switch {
 	case cfg.ConnectionString != "":
-		fs, err = dbstorage.NewStorage(ctx, cfg.ConnectionString, cfg.StoreInterval == 0)
-		if err != nil {
+		db, dberr := dbstorage.NewStorage(ctx, cfg.ConnectionString, cfg.StoreInterval == 0)
+		if dberr != nil {
 			log.Panicf("Error creating dbstorage %v", err)
 		}
+		fs = storage.SecondaryStorage(db)
+		sqlDBStorage = dbstorage.SQLStorage(db)
 	default:
 		if cfg.StoreFile != "" {
 			fs = filestorage.NewStorage(cfg)
@@ -48,9 +51,7 @@ func main() {
 	}
 
 	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, fs)
-
 	defer cancel()
-	sqlDBStorage, err := dbstorage.NewStorage(ctx, cfg.ConnectionString, false)
 	if err != nil {
 		log.Printf("Error creating dbStorage: %v", err)
 		//  log.Panicf("Error creating dbStorage: %v", err)

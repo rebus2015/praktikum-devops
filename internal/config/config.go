@@ -20,7 +20,7 @@ func GetConfig() (*Config, error) {
 	conf := Config{}
 
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
-	flag.DurationVar(&conf.StoreInterval, "i", time.Second*20, "Metrics save to file interval")
+	flag.DurationVar(&conf.StoreInterval, "i", time.Second*30, "Metrics save to file interval")
 	flag.StringVar(&conf.StoreFile, "f", "/tmp/devops-metrics-db.json", "Metrics repository file path")
 	flag.BoolVar(&conf.Restore, "r", true, "Restore metric values from file before start")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
