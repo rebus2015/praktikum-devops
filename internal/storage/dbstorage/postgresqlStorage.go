@@ -85,7 +85,6 @@ func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
 }
 
 func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	// ctx, cancel := context.WithTimeout(pgs.context, time.Second*15)
 	ctx, cancel := context.WithCancel(pgs.context)
 	defer cancel()
 
