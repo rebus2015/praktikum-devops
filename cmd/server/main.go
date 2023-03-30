@@ -28,7 +28,7 @@ func main() {
 	var sqlDBStorage dbstorage.SQLStorage
 	switch {
 	case cfg.ConnectionString != "":
-		db, dberr := dbstorage.NewStorage(ctx, cfg.ConnectionString, cfg.StoreInterval == 0)
+		db, dberr := dbstorage.NewStorage(ctx, cfg.ConnectionString, true)
 		if dberr != nil {
 			log.Panicf("Error creating dbstorage %v", err)
 		}
