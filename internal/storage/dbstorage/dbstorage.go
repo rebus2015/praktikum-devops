@@ -11,7 +11,7 @@ const (
  UNIQUE (name,type)
         );
 
-CREATE OR REPLACE FUNCTION save(TEXT, VARCHAR(10),DOUBLE PRECISION, INTEGER)
+CREATE OR REPLACE FUNCTION save(TEXT, VARCHAR(10),DOUBLE PRECISION, bigint)
  RETURNS void AS '
 BEGIN
  INSERT INTO metrics (name,type,value,delta)
@@ -25,7 +25,7 @@ CREATE OR REPLACE FUNCTION get()
     RETURNS TABLE ( name text, 
             type varchar(10), 
             value double precision,
-            delta integer) AS $$
+            delta bigint) AS $$
     SELECT name,type,value,delta FROM metrics
 $$ LANGUAGE SQL STABLE;`
 	SetMetricQuery  string = "SELECT * FROM save(@name,@type,@value,@delta)"
