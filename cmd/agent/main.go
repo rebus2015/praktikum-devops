@@ -167,48 +167,46 @@ func (m *metricset) flushCounter(c string) {
 	m.counters[c] = 0
 }
 
-func (m *metricset) updateSend(cfg *config) error {
+func (m *metricset) updateSendMultiple(cfg *config) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 	client := &http.Client{}
-
-	// отправляем статистику для gauge
+	metricList := []*model.Metrics{}
+	// собираем статистику для gauge
 	for g := range m.gauges {
 		gmetric := m.get(Gauge, g)
 		if cfg.Key != "" {
 			hashObject := signer.NewHashObject(cfg.Key)
 			err := hashObject.Sign(gmetric)
 			if err != nil {
-				log.Printf("Error send gauge Statistic: %v\n", err)
+				log.Printf("Error Sign gauges Statistic: %v,\n Gauge:%v", err, gmetric)
 				return err
 			}
 		}
-		err := sendreq(
-			request(ctx, gmetric, cfg), client)
-		if err != nil {
-			log.Printf("Error send gauge Statistic: %v\n", err)
-			return err
-		}
+		metricList = append(metricList, gmetric)
 	}
 
-	// отправляем статистику counter
+	// собираем статистику counter
 	for c := range m.counters {
 		cmetric := m.get(Count, c)
 		if cfg.Key != "" {
 			hashObject := signer.NewHashObject(cfg.Key)
 			err := hashObject.Sign(cmetric)
 			if err != nil {
-				log.Printf("Error send counters Statistic: %v\n", err)
+				log.Printf("Error Sign counter Statistic: %v,\n Counter: %v", err, cmetric)
 				return err
 			}
 		}
-		err := sendreq(request(ctx, cmetric, cfg), client)
-		if err != nil {
-			log.Printf("Error send counter Statistic: %v\n", err)
-			return err
-		}
+		metricList = append(metricList, cmetric)
 		m.flushCounter(c)
 	}
+
+	err := sendreq(request(ctx, metricList, cfg), client)
+	if err != nil {
+		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
+		return err
+	}
+
 	return nil
 }
 
@@ -240,13 +238,13 @@ func (m *metricset) get(mtype string, name string) *model.Metrics {
 	return &metric
 }
 
-func request(ctx context.Context, metric *model.Metrics, cfg *config) *http.Request {
+func request(ctx context.Context, metrics []*model.Metrics, cfg *config) *http.Request {
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
-		Path:   "update",
+		Path:   "updates",
 	}
-	data, err := json.Marshal(metric)
+	data, err := json.Marshal(metrics)
 	if err != nil {
 		log.Printf("Error request '%v'\n", err)
 		log.Panicf("Error request '%v'\n", err)
@@ -307,7 +305,7 @@ func main() {
 			}
 		case <-sndticker.C:
 			{
-				err := m.updateSend(cfg)
+				err := m.updateSendMultiple(cfg)
 				if err != nil {
 					log.Printf("Error send metrics: %v\n", err)
 				}

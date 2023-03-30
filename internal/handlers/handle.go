@@ -84,8 +84,8 @@ func NewRouter(
 	})
 
 	r.Route("/updates", func(r chi.Router) {
-		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
-			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
+		r.With(MiddlewareGeneratorMultipleJSON(cfg.Key)).
+			Post("/", UpdateJSONMultipleMetricHandlerFunc(*metricStorage, cfg.Key))
 	})
 
 	r.Route("/value", func(r chi.Router) {

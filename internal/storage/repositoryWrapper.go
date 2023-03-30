@@ -66,7 +66,7 @@ func (rw *RepositoryWrapper) GetView() ([]memstorage.MetricStr, error) {
 	return rw.memstorage.GetView()
 }
 
-func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) (error) {
+func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	err := rw.memstorage.AddMetrics(m)

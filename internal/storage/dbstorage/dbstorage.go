@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION get()
             delta integer) AS $$
     SELECT name,type,value,delta FROM metrics
 $$ LANGUAGE SQL STABLE;`
-	SetMetricQuery  string = "SELECT save(@n,@t,@v,@d)"
+	SetMetricQuery  string = "SELECT * FROM save(@name,@type,@value,@delta)"
 	GetMetricsQuery string = "SELECT * FROM get()"
 )
 

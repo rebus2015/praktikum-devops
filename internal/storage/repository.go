@@ -13,7 +13,7 @@ type Repository interface {
 	GetCounter(name string) (int64, error)
 	GetGauge(name string) (float64, error)
 	GetView() ([]memstorage.MetricStr, error)
-	AddMetrics([]*model.Metrics) (error)
+	AddMetrics([]*model.Metrics) error
 }
 
 type SecondaryStorage interface {

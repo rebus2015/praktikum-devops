@@ -55,23 +55,14 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 }
 
 func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
-	// шаг 1.1 — если возникает ошибка, откатываем изменения
-	// шаг 2 — готовим инструкцию
-	stmt, err := tx.PrepareContext(ctx, SetMetricQuery)
-	if err != nil {
-		return err
-	}
-	// шаг 2.1 — не забываем закрыть инструкцию, когда она больше не нужна
-	defer stmt.Close()
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
-			"n": metric,
-			"t": "gauge",
-			"v": val,
-			"d": sql.NullInt64{Valid: true},
+			"name":  metric,
+			"type":  "gauge",
+			"value": val,
+			"delta": sql.NullInt64{Valid: true},
 		}
-		// шаг 3 — указываем, что каждое видео будет добавлено в транзакцию
-		if _, err := stmt.ExecContext(ctx, args); err != nil {
+		if _, err := tx.ExecContext(ctx, SetMetricQuery, args); err != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
@@ -79,12 +70,12 @@ func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
 
 	for metric, val := range ms.Counters {
 		args := pgx.NamedArgs{
-			"n": metric,
-			"t": "counter",
-			"v": sql.NullFloat64{Valid: true},
-			"d": val,
+			"name":  metric,
+			"type":  "counter",
+			"value": sql.NullFloat64{Valid: true},
+			"delta": val,
 		}
-		if _, err := stmt.ExecContext(ctx, args); err != nil {
+		if _, err := tx.ExecContext(ctx, SetMetricQuery, args); err != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
@@ -94,8 +85,8 @@ func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
 }
 
 func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	ctx, cancel := context.WithTimeout(pgs.context, time.Second*15)
-
+	// ctx, cancel := context.WithTimeout(pgs.context, time.Second*15)
+	ctx, cancel := context.WithCancel(pgs.context)
 	defer cancel()
 
 	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
