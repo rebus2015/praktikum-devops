@@ -54,8 +54,9 @@ var contentTypes = []string{
 }
 
 const (
-	counter string = "counter"
-	gauge   string = "gauge"
+	counter    string = "counter"
+	gauge      string = "gauge"
+	compressed string = "gzip"
 )
 
 func NewRouter(
@@ -71,17 +72,24 @@ func NewRouter(
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
 	r.Get("/", GetAllHandler(*metricStorage))
+
 	r.Get("/ping", GetDBConnState(postgreStorage))
+
 	r.Route("/update", func(r chi.Router) {
-		r.With(MiddlewareGeneratorJSON(cfg.Key)).
+		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
 			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(*metricStorage))
 		})
 	})
 
+	r.Route("/updates", func(r chi.Router) {
+		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
+			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
+	})
+
 	r.Route("/value", func(r chi.Router) {
-		r.With(MiddlewareGeneratorJSON(cfg.Key)).
+		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
 			Post("/", GetJSONMetricHandlerFunc(*metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", GetMetricHandlerFunc(*metricStorage))
@@ -107,6 +115,52 @@ func GetDBConnState(
 		}
 		// устанавливаем статус-код 200
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func UpdateJSONMultipleMetricHandlerFunc(
+	metricStorage storage.Repository,
+	key string,
+) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metrics, ok := r.Context().Value(metricContextKey{}).([]*model.Metrics)
+		if !ok {
+			log.Printf(
+				"Error: [UpdateJSONMultipleMetricHandlerFunc] Metric info not found in context status-'500'",
+			)
+			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			return
+		}
+		err := metricStorage.AddMetrics(metrics)
+		if err != nil {
+			log.Printf("Error: [UpdateJSONMultipleMetricHandlerFunc] Add multiple metrics error: %v", err)
+			http.Error(
+				w,
+				fmt.Sprintf("Add multiple metrics error: %v", err),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		retval := []model.Metrics{}
+		for _, m := range metrics {
+			retval = append(retval, model.Metrics{
+				ID:    m.ID,
+				MType: m.MType,
+				Value: m.Value,
+				Delta: m.Delta,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		err = encoder.Encode(retval)
+		if err != nil {
+			log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json encode error :%v", err)
+			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
+		}
+		log.Printf("Возвращаем UpdateJSON result :%v", retval)
 	}
 }
 
@@ -295,11 +349,11 @@ func GetJSONMetricHandlerFunc(
 	}
 }
 
-func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
+func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var reader io.Reader
-			if r.Header.Get(`Content-Encoding`) == `gzip` {
+			if r.Header.Get(`Content-Encoding`) == compressed {
 				gz, err := gzip.NewReader(r.Body)
 				if err != nil {
 					log.Printf("Failed to create gzip reader: %v", err.Error())
@@ -365,6 +419,52 @@ func MiddlewareGeneratorJSON(key string) func(next http.Handler) http.Handler {
 				}
 			}
 			ctx := context.WithValue(r.Context(), metricContextKey{}, metric)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var reader io.Reader
+			if r.Header.Get(`Content-Encoding`) == compressed {
+				gz, err := gzip.NewReader(r.Body)
+				if err != nil {
+					log.Printf("Failed to create gzip reader: %v", err.Error())
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				reader = gz
+				defer gz.Close()
+			} else {
+				reader = r.Body
+			}
+
+			metrics := []*model.Metrics{}
+			decoder := json.NewDecoder(reader)
+			defer r.Body.Close()
+
+			if err := decoder.Decode(&metrics); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metrics)
+			for _, inputMetric := range metrics {
+				if key != "" {
+					pass, err := checkMetric(inputMetric, key)
+					if err != nil || !pass {
+						http.Error(
+							w,
+							err.Error(),
+							http.StatusBadRequest,
+						)
+						return
+					}
+				}
+			}
+
+			ctx := context.WithValue(r.Context(), metricContextKey{}, metrics)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -443,4 +543,35 @@ func GetAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter,
 			return
 		}
 	}
+}
+
+func checkMetric(metric *model.Metrics, key string) (bool, error) {
+	if metric.ID == "" {
+		return false, fmt.Errorf("metric.ID is empty /n Body: %v", metric)
+	}
+	if metric.MType == "" {
+		return false, fmt.Errorf("metric.MType is empty /n Body: %v", metric)
+	}
+	if metric.Hash != "" {
+		hashObject := signer.NewHashObject(key)
+		passed, err := hashObject.Verify(metric)
+		if err != nil {
+			log.Printf(
+				"Incoming Metric verification error: \nBody: %v, \n error: %v",
+				metric,
+				err)
+			return false, fmt.Errorf("incoming Metric verification error: \nBody: %v, \n error: %w",
+				metric,
+				err)
+		}
+		if !passed {
+			log.Printf(
+				"Error: Incoming Metric could not pass signature verification: \nBody: %v",
+				metric)
+
+			return false, fmt.Errorf("error: Incoming Metric could not pass signature verification: \nBody: %v",
+				metric)
+		}
+	}
+	return true, nil
 }

@@ -3,8 +3,16 @@ package memstorage
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
+
+	"github.com/rebus2015/praktikum-devops/internal/model"
+)
+
+const (
+	counter string = "counter"
+	gauge   string = "gauge"
 )
 
 func ptr[T any](v T) *T {
@@ -148,4 +156,43 @@ func (m *MemStorage) GetView() ([]MetricStr, error) {
 	}
 
 	return view, nil
+}
+
+func (m *MemStorage) AddMetrics(metrics []*model.Metrics) error {
+	for _, metric := range metrics {
+		switch metric.MType {
+		case counter:
+			{
+				if metric.Delta == nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Counter not found status- 400")
+					return fmt.Errorf("%w", errors.New("error: [updateJSONMetricHandlerFunc] counter not found status- 400"))
+				}
+
+				_, err := m.IncCounter(metric.ID, metric.Delta)
+				if err != nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Update counter error: %v", err)
+					return fmt.Errorf("%w", err)
+				}
+			}
+		case gauge:
+			{
+				if metric.Value == nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] gauge not found status- 400")
+					return fmt.Errorf("%w", errors.New("error: [updateJSONMetricHandlerFunc] gauge not found status- 400"))
+				}
+
+				_, err := m.SetGauge(metric.ID, metric.Value)
+				if err != nil {
+					log.Printf("Error: [updateJSONMetricHandlerFunc] Update gauge error: %v", err)
+					return fmt.Errorf("%w", err)
+				}
+			}
+		default:
+			{
+				log.Printf("Error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500")
+				return fmt.Errorf("%w", errors.New("error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500"))
+			}
+		}
+	}
+	return nil
 }

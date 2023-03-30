@@ -54,9 +54,15 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	ctx, cancel := context.WithTimeout(pgs.context, time.Second*5)
-	defer cancel()
+func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
+	// шаг 1.1 — если возникает ошибка, откатываем изменения
+	// шаг 2 — готовим инструкцию
+	stmt, err := tx.PrepareContext(ctx, SetMetricQuery)
+	if err != nil {
+		return err
+	}
+	// шаг 2.1 — не забываем закрыть инструкцию, когда она больше не нужна
+	defer stmt.Close()
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
 			"n": metric,
@@ -64,8 +70,8 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"v": val,
 			"d": sql.NullInt64{Valid: true},
 		}
-		_, err := pgs.connection.ExecContext(ctx, SetMetricQuery, args)
-		if err != nil {
+		// шаг 3 — указываем, что каждое видео будет добавлено в транзакцию
+		if _, err := stmt.ExecContext(ctx, args); err != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
@@ -78,12 +84,34 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"v": sql.NullFloat64{Valid: true},
 			"d": val,
 		}
-		_, err := pgs.connection.ExecContext(ctx, SetMetricQuery, args)
-		if err != nil {
+		if _, err := stmt.ExecContext(ctx, args); err != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
 	}
+	// шаг 4 — сохраняем изменения
+	return tx.Commit()
+}
+
+func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
+	ctx, cancel := context.WithTimeout(pgs.context, time.Second*15)
+
+	defer cancel()
+
+	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
+	if err != nil {
+		return err
+	}
+
+	err = execute(ctx, ms, tx)
+	if err != nil {
+		rberr := tx.Rollback()
+		if rberr != nil {
+			log.Printf("failed to rollback transaction err: %v", rberr)
+		}
+		return fmt.Errorf("failed to execute transaction %w", err)
+	}
+
 	return nil
 }
 

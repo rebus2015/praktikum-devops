@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
@@ -63,4 +64,17 @@ func (rw *RepositoryWrapper) GetGauge(name string) (float64, error) {
 
 func (rw *RepositoryWrapper) GetView() ([]memstorage.MetricStr, error) {
 	return rw.memstorage.GetView()
+}
+
+func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) (error) {
+	rw.mux.Lock()
+	defer rw.mux.Unlock()
+	err := rw.memstorage.AddMetrics(m)
+	if rw.secondarystorage.SyncMode() {
+		errs := rw.secondarystorage.Save(&rw.memstorage)
+		if errs != nil {
+			log.Printf("FileStorage Save error: %v", err)
+		}
+	}
+	return nil
 }
