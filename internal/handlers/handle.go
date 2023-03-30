@@ -154,6 +154,8 @@ func UpdateJSONMultipleMetricHandlerFunc(
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		log.Printf("Try to encode :%v to metric[]", retval)
+
 		encoder := json.NewEncoder(w)
 		err = encoder.Encode(retval)
 		if err != nil {
