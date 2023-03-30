@@ -20,7 +20,8 @@ func main() {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
 	}
-	log.Printf("server started on %v with key: '%v', ", cfg.ServerAddress, cfg.Key)
+	log.Printf("server started on %v with \n key: '%v', \n store.Interval:%v,\n restore: %v ",
+		cfg.ServerAddress, cfg.Key, cfg.StoreInterval, cfg.Restore)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var fs storage.SecondaryStorage
