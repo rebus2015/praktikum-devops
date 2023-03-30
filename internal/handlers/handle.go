@@ -440,17 +440,18 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 			} else {
 				reader = r.Body
 			}
-
+			log.Println("Incoming request Updates, before decoder")
 			metrics := []*model.Metrics{}
 			decoder := json.NewDecoder(reader)
 			defer r.Body.Close()
 
+			log.Println("Incoming request Updates, Decoder.decode()")
 			if err := decoder.Decode(&metrics); err != nil {
 				log.Printf("Failed to Decode incoming metricList %v", err)
-				b, err := io.ReadAll(reader)
-				if err == nil {
-					log.Printf("Body content: %s", string(b))
-				}
+				// b, err := io.ReadAll(reader)
+				// if err == nil {
+				// 	log.Printf("Body content: %s", string(b))
+				// }
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
