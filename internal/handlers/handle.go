@@ -446,7 +446,11 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 			defer r.Body.Close()
 
 			if err := decoder.Decode(&metrics); err != nil {
-				log.Printf("Failed to Decode incoming metricList %v", metrics)
+				log.Printf("Failed to Decode incoming metricList %v", err)
+				b, err := io.ReadAll(reader)
+				if err == nil {
+					log.Printf("Body content: %s", string(b))
+				}
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
