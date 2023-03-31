@@ -56,7 +56,7 @@ var contentTypes = []string{
 const (
 	counter    string = "counter"
 	gauge      string = "gauge"
-	compressed string = "gzip"
+	compressed string = `gzip`
 )
 
 func NewRouter(
@@ -430,7 +430,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var reader io.Reader
-			if r.Header.Get(`Content-Encoding`) == compressed {
+			if r.Header.Get(`Content-Encoding`) == `gzip` {
 				gz, err := gzip.NewReader(r.Body)
 				if err != nil {
 					log.Printf("Failed to create gzip reader: %v", err.Error())
@@ -443,18 +443,15 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 				reader = r.Body
 			}
 			log.Println("Incoming request Updates, before decoder")
-			metrics := []*model.Metrics{}
-			decoder := json.NewDecoder(reader)
 			defer r.Body.Close()
+			metrics := []*model.Metrics{}
 
 			log.Println("Incoming request Updates, Decoder.decode()")
-			if err := decoder.Decode(&metrics); err != nil {
+
+			err := json.NewDecoder(reader).Decode(&metrics)
+			if err != nil {
 				log.Printf("Failed to Decode incoming metricList %v", err)
-				// b, err := io.ReadAll(reader)
-				// if err == nil {
-				// 	log.Printf("Body content: %s", string(b))
-				// }
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Failed to Decode incoming metricList %v", err), http.StatusBadRequest)
 				return
 			}
 			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metrics)
