@@ -446,16 +446,13 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 			defer r.Body.Close()
 			metrics := []*model.Metrics{}
 			bodyBytes, _ := io.ReadAll(reader)
-			log.Printf("Incoming request Updates, Decoder.decode() , %v", string(bodyBytes))
-
-			// err := json.NewDecoder(reader).Decode(&metrics)
 			err := json.Unmarshal(bodyBytes, &metrics)
 			if err != nil {
-				log.Printf("Failed to Decode incoming metricList %v", err)
+				log.Printf("Failed to Decode incoming metricList %v, error: %v", string(bodyBytes), err)
 				http.Error(w, fmt.Sprintf("Failed to Decode incoming metricList %v", err), http.StatusBadRequest)
 				return
 			}
-			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, metrics)
+			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, string(bodyBytes))
 			for _, inputMetric := range metrics {
 				if key != "" {
 					pass, err := checkMetric(inputMetric, key)
