@@ -42,23 +42,25 @@ func main() {
 	}
 
 	ms := memstorage.NewStorage()
-	if cfg.Restore && fs != nil {
-		ms, err = fs.Restore()
-		if err != nil {
-			log.Panicf("Error restoring data %v", err)
+	if fs != nil {
+		if cfg.Restore {
+			ms, err = fs.Restore()
+			if err != nil {
+				log.Panicf("Error restoring data %v", err)
+			}
 		}
-	}
-	if cfg.StoreInterval != 0 {
-		go fs.SaveTicker(cfg.StoreInterval, ms)
+		if cfg.StoreInterval != 0 {
+			go fs.SaveTicker(cfg.StoreInterval, ms)
+		}
 	}
 
 	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, fs)
 	defer cancel()
 	if err != nil {
-		log.Printf("Error creating dbStorage: %v", err)
+		log.Printf("Error creating NewRepositoryWrapper: %v", err)
 		//  log.Panicf("Error creating dbStorage: %v", err)
 	}
-	log.Printf("Created dbStorage: %v", cfg.ConnectionString)
+	log.Printf("Created NewRepositoryWrapper: %v", cfg.ConnectionString)
 
 	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
 	srv := &http.Server{

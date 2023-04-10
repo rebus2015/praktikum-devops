@@ -28,10 +28,12 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	retval, err := rw.memstorage.SetGauge(name, val)
-	if rw.secondarystorage.SyncMode() {
-		errs := rw.secondarystorage.Save(&rw.memstorage)
-		if errs != nil {
-			log.Printf("FileStorage Save error: %v", err)
+	if rw.secondarystorage != nil {
+		if rw.secondarystorage.SyncMode() {
+			errs := rw.secondarystorage.Save(&rw.memstorage)
+			if errs != nil {
+				log.Printf("FileStorage Save error: %v", err)
+			}
 		}
 	}
 	return retval, err
@@ -41,10 +43,12 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	retval, err := rw.memstorage.IncCounter(name, val)
-	if rw.secondarystorage.SyncMode() {
-		errs := rw.secondarystorage.Save(&rw.memstorage)
-		if errs != nil {
-			log.Printf("FileStorage Save error: %v", err)
+	if rw.secondarystorage != nil {
+		if rw.secondarystorage.SyncMode() {
+			errs := rw.secondarystorage.Save(&rw.memstorage)
+			if errs != nil {
+				log.Printf("FileStorage Save error: %v", err)
+			}
 		}
 	}
 	return retval, err
@@ -70,10 +74,12 @@ func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
 	rw.mux.Lock()
 	defer rw.mux.Unlock()
 	err := rw.memstorage.AddMetrics(m)
-	if rw.secondarystorage.SyncMode() {
-		errs := rw.secondarystorage.Save(&rw.memstorage)
-		if errs != nil {
-			log.Printf("FileStorage Save error: %v", err)
+	if rw.secondarystorage != nil {
+		if rw.secondarystorage.SyncMode() {
+			errs := rw.secondarystorage.Save(&rw.memstorage)
+			if errs != nil {
+				log.Printf("FileStorage Save error: %v", err)
+			}
 		}
 	}
 	return nil
