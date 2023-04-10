@@ -444,7 +444,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 			}
 			log.Println("Incoming request Updates, before decoder")
 			defer r.Body.Close()
-			var metrics []model.Metrics
+			var metrics []*model.Metrics
 			bodyBytes, _ := io.ReadAll(reader)
 			err := json.Unmarshal(bodyBytes, &metrics)
 			if err != nil {
@@ -455,7 +455,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, string(bodyBytes))
 			for i := range metrics {
 				if key != "" {
-					pass, err := checkMetric(&metrics[i], key)
+					pass, err := checkMetric(metrics[i], key)
 					if err != nil || !pass {
 						http.Error(
 							w,
