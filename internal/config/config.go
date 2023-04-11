@@ -20,11 +20,11 @@ func GetConfig() (*Config, error) {
 	conf := Config{}
 
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
-	flag.DurationVar(&conf.StoreInterval, "i", time.Second*10, "Metrics save to file interval")
+	flag.DurationVar(&conf.StoreInterval, "i", time.Second*300, "Metrics save to file interval")
 	flag.StringVar(&conf.StoreFile, "f", "", "Metrics repository file path")
-	flag.BoolVar(&conf.Restore, "r", false, "Restore metric values from file before start")
-	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
-	flag.StringVar(&conf.ConnectionString, "d", "",
+	flag.BoolVar(&conf.Restore, "r", true, "Restore metric values from file before start")
+	flag.StringVar(&conf.Key, "k", "/tmp/MoS2i", "Key to sign up data with SHA256 algorythm")
+	flag.StringVar(&conf.ConnectionString, "d", "postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable",
 		"Database connection string(PostgreSql)") // postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable
 
 	flag.Parse()

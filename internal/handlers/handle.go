@@ -143,12 +143,24 @@ func UpdateJSONMultipleMetricHandlerFunc(
 		}
 
 		retval := []model.Metrics{}
-		for _, m := range metrics {
+		for i, m := range metrics {
+			if key != "" {
+				hashObject := signer.NewHashObject(key)
+				sssignErr := hashObject.Sign(metrics[i])
+				if sssignErr != nil {
+					log.Printf(
+						"Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v",
+						err,
+					)
+					http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
+				}
+			}
 			retval = append(retval, model.Metrics{
 				ID:    m.ID,
 				MType: m.MType,
 				Value: m.Value,
 				Delta: m.Delta,
+				Hash:  m.Hash,
 			})
 		}
 
