@@ -16,7 +16,7 @@ func TestGMetric_String(t *testing.T) {
 			"GMetric to string int",
 			GMetric{
 				"Gauge1",
-				424,
+				424.000000,
 			},
 			"424",
 		},
