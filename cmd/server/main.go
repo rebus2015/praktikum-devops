@@ -23,7 +23,7 @@ func main() {
 	log.Printf("server started on %v with \n key: '%v', \n store.Interval:%v,\n restore: %v ",
 		cfg.ServerAddress, cfg.Key, cfg.StoreInterval, cfg.Restore)
 	ctx, cancel := context.WithCancel(context.Background())
-
+	defer cancel()
 	var fs storage.SecondaryStorage
 	var sqlDBStorage dbstorage.SQLStorage
 	switch {
@@ -65,8 +65,8 @@ func main() {
 	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
 		Addr:         cfg.ServerAddress,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
 		Handler:      r,
 	}
 	err = srv.ListenAndServe()

@@ -20,7 +20,7 @@ func ptr[T any](v T) *T {
 }
 
 func (g GMetric) String() string {
-	x := fmt.Sprintf("%g", g.Val)
+	x := fmt.Sprintf("%f", g.Val)
 	return x
 }
 
@@ -152,7 +152,7 @@ func (m *MemStorage) GetView() ([]MetricStr, error) {
 		view = append(view, MetricStr{key, fmt.Sprintf("%v", val)})
 	}
 	for _, key := range keys {
-		view = append(view, MetricStr{key, fmt.Sprintf("%v", m.Gauges[key])})
+		view = append(view, MetricStr{key, fmt.Sprintf("%f", m.Gauges[key])})
 	}
 
 	return view, nil
