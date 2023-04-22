@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type FileStorage struct {

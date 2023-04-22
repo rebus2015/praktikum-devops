@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {

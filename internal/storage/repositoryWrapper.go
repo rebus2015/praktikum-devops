@@ -1,8 +1,9 @@
 package storage
 
 import (
-	"log"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"

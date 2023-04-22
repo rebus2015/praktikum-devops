@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl
+	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl\
+	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"

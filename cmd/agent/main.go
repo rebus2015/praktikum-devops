@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/signer"

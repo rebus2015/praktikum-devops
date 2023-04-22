@@ -3,9 +3,10 @@ package memstorage
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
