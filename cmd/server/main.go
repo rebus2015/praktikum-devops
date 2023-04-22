@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {

@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type FileStorage struct {
