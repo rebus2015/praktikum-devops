@@ -60,6 +60,7 @@ func (rw *RepositoryWrapper) GetView() ([]memstorage.MetricStr, error) {
 }
 
 func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
+
 	err := rw.memstorage.AddMetrics(m)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {

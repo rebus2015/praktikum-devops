@@ -186,6 +186,8 @@ func (m *MemStorage) GetView() ([]MetricStr, error) {
 }
 
 func (m *MemStorage) AddMetrics(metrics []*model.Metrics) error {
+	m.Mux.Lock()
+	defer m.Mux.Unlock()
 	for _, metric := range metrics {
 		switch metric.MType {
 		case counter:
