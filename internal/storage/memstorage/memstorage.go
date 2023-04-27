@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -68,16 +69,20 @@ type CMetric struct {
 type MemStorage struct {
 	Gauges   map[string]float64
 	Counters map[string]int64
+	mux      *sync.RWMutex
 }
 
 func NewStorage() *MemStorage {
 	return &MemStorage{
 		map[string]float64{},
 		map[string]int64{},
+		&sync.RWMutex{},
 	}
 }
 
 func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	g := GMetric{}
 	switch v := val.(type) {
 	case string:
@@ -101,6 +106,8 @@ func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
 }
 
 func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
+	m.mux.Lock()
+	defer m.mux.Unlock()
 	c := CMetric{}
 	switch v := val.(type) {
 	case string:
@@ -128,6 +135,8 @@ func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
 }
 
 func (m *MemStorage) GetCounter(name string) (int64, error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
 		return 0, fmt.Errorf("counter with name '%v' is not found", name)
 	}
@@ -135,6 +144,8 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 }
 
 func (m *MemStorage) GetGauge(name string) (float64, error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
 		return 0, fmt.Errorf("cauge with name '%v' is not found", name)
 	}
@@ -142,6 +153,8 @@ func (m *MemStorage) GetGauge(name string) (float64, error) {
 }
 
 func (m *MemStorage) GetView() ([]MetricStr, error) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
 	view := []MetricStr{}
 	keys := []string{}
 	for k := range m.Gauges {
