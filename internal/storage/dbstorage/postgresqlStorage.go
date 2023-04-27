@@ -54,7 +54,15 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
+func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
+	ctx, cancel := context.WithCancel(pgs.context)
+	defer cancel()
+
+	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback().Error()
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
 			"name":  metric,
@@ -62,7 +70,7 @@ func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
 			"value": val,
 			"delta": sql.NullInt64{Valid: true},
 		}
-		if _, err := tx.ExecContext(ctx, SetMetricQuery, args); err != nil {
+		if _, errg := tx.ExecContext(ctx, SetMetricQuery, args); errg != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
@@ -75,25 +83,13 @@ func execute(ctx context.Context, ms *memstorage.MemStorage, tx *sql.Tx) error {
 			"value": sql.NullFloat64{Valid: true},
 			"delta": val,
 		}
-		if _, err := tx.ExecContext(ctx, SetMetricQuery, args); err != nil {
+		if _, errc := tx.ExecContext(ctx, SetMetricQuery, args); errc != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
 		}
 	}
 	// шаг 4 — сохраняем изменения
-	return tx.Commit()
-}
-
-func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	ctx, cancel := context.WithCancel(pgs.context)
-	defer cancel()
-
-	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
-	if err != nil {
-		return err
-	}
-
-	err = execute(ctx, ms, tx)
+	err = tx.Commit()
 	if err != nil {
 		rberr := tx.Rollback()
 		if rberr != nil {

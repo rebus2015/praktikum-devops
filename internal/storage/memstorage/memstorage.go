@@ -138,6 +138,10 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 	if _, ok := m.Counters[name]; !ok {
+		log.Printf(
+			"counter with name '%v' is not found",
+			name,
+		)
 		return 0, fmt.Errorf("counter with name '%v' is not found", name)
 	}
 	return m.Counters[name], nil
@@ -153,8 +157,6 @@ func (m *MemStorage) GetGauge(name string) (float64, error) {
 }
 
 func (m *MemStorage) GetView() ([]MetricStr, error) {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
 	view := []MetricStr{}
 	keys := []string{}
 	for k := range m.Gauges {
