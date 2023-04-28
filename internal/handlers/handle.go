@@ -62,7 +62,7 @@ const (
 )
 
 func NewRouter(
-	metricStorage *storage.Repository,
+	metricStorage storage.Repository,
 	postgreStorage dbstorage.SQLStorage,
 	cfg config.Config,
 ) chi.Router {
@@ -73,28 +73,28 @@ func NewRouter(
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
 
-	r.Get("/", GetAllHandler(*metricStorage))
+	r.Get("/", GetAllHandler(metricStorage))
 
 	r.Get("/ping", GetDBConnState(postgreStorage))
 
 	r.Route("/update", func(r chi.Router) {
 		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
-			Post("/", UpdateJSONMetricHandlerFunc(*metricStorage, cfg.Key))
+			Post("/", UpdateJSONMetricHandlerFunc(metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
-			r.Post("/", UpdateMetricHandlerFunc(*metricStorage))
+			r.Post("/", UpdateMetricHandlerFunc(metricStorage))
 		})
 	})
 
 	r.Route("/updates", func(r chi.Router) {
 		r.With(MiddlewareGeneratorMultipleJSON(cfg.Key)).
-			Post("/", UpdateJSONMultipleMetricHandlerFunc(*metricStorage, cfg.Key))
+			Post("/", UpdateJSONMultipleMetricHandlerFunc(metricStorage, cfg.Key))
 	})
 
 	r.Route("/value", func(r chi.Router) {
 		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
-			Post("/", GetJSONMetricHandlerFunc(*metricStorage, cfg.Key))
+			Post("/", GetJSONMetricHandlerFunc(metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
-			r.Get("/", GetMetricHandlerFunc(*metricStorage))
+			r.Get("/", GetMetricHandlerFunc(metricStorage))
 		})
 	})
 

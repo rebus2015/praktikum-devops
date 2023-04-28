@@ -55,15 +55,14 @@ func main() {
 		}
 	}
 
-	var storage storage.Repository = storage.NewRepositoryWrapper(ms, fs)
+	storage := storage.NewRepositoryWrapper(ms, fs)
 	defer cancel()
 	if err != nil {
 		log.Printf("Error creating NewRepositoryWrapper: %v", err)
-		//  log.Panicf("Error creating dbStorage: %v", err)
 	}
 	log.Printf("Created NewRepositoryWrapper: %v", cfg.ConnectionString)
 
-	r := handlers.NewRouter(&storage, sqlDBStorage, *cfg)
+	r := handlers.NewRouter(storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
 		Addr:         cfg.ServerAddress,
 		ReadTimeout:  60 * time.Second,
