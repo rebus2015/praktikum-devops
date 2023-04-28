@@ -55,7 +55,7 @@ func main() {
 		}
 	}
 
-	var storage storage.Repository = storage.NewRepositoryWrapper(*ms, fs)
+	var storage storage.Repository = storage.NewRepositoryWrapper(ms, fs)
 	defer cancel()
 	if err != nil {
 		log.Printf("Error creating NewRepositoryWrapper: %v", err)

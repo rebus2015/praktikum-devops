@@ -14,6 +14,7 @@ type Repository interface {
 	GetGauge(name string) (float64, error)
 	GetView() ([]memstorage.MetricStr, error)
 	AddMetrics([]*model.Metrics) error
+	//Mutex() (*sync.RWMutex, error)
 }
 
 type SecondaryStorage interface {

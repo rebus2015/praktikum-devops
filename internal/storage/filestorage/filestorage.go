@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -133,6 +134,6 @@ func (r *consumer) readStorage() (*memstorage.MemStorage, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	ms.Mux = &sync.RWMutex{}
 	return &ms, nil
 }

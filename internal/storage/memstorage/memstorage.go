@@ -69,7 +69,7 @@ type CMetric struct {
 type MemStorage struct {
 	Gauges   map[string]float64
 	Counters map[string]int64
-	mux      *sync.RWMutex
+	Mux      *sync.RWMutex
 }
 
 func NewStorage() *MemStorage {
@@ -80,9 +80,17 @@ func NewStorage() *MemStorage {
 	}
 }
 
+// func (m *MemStorage) Mutex() (*sync.RWMutex, error) {
+// 	if m.Mu == nil {
+// 		log.Println("ERROR MemStorage Mutex is nil")
+// 		return nil, fmt.Errorf("ERROR MemStorage Mutex is nil")
+// 	}
+// 	return m.Mu, nil
+// }
+
 func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
+	m.Mux.Lock()
+	defer m.Mux.Unlock()
 	g := GMetric{}
 	switch v := val.(type) {
 	case string:
@@ -106,8 +114,8 @@ func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
 }
 
 func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
-	m.mux.Lock()
-	defer m.mux.Unlock()
+	m.Mux.Lock()
+	defer m.Mux.Unlock()
 	c := CMetric{}
 	switch v := val.(type) {
 	case string:
@@ -135,8 +143,11 @@ func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
 }
 
 func (m *MemStorage) GetCounter(name string) (int64, error) {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
+	log.Printf("MemStorage GetCounter for '%v'", name)
+	log.Println("MemStorage GetCounter Lock")
+	m.Mux.RLock()
+	defer m.Mux.RUnlock()
+	log.Println("MemStorage GetCounter check Counters map")
 	if _, ok := m.Counters[name]; !ok {
 		log.Printf(
 			"counter with name '%v' is not found",
@@ -148,8 +159,8 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 }
 
 func (m *MemStorage) GetGauge(name string) (float64, error) {
-	m.mux.RLock()
-	defer m.mux.RUnlock()
+	m.Mux.RLock()
+	defer m.Mux.RUnlock()
 	if _, ok := m.Gauges[name]; !ok {
 		return 0, fmt.Errorf("cauge with name '%v' is not found", name)
 	}

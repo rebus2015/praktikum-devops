@@ -8,13 +8,13 @@ import (
 )
 
 type RepositoryWrapper struct {
-	memstorage       memstorage.MemStorage
+	memstorage       *memstorage.MemStorage
 	secondarystorage SecondaryStorage
 }
 
 var _ Repository = new(RepositoryWrapper)
 
-func NewRepositoryWrapper(mes memstorage.MemStorage, sec SecondaryStorage) *RepositoryWrapper {
+func NewRepositoryWrapper(mes *memstorage.MemStorage, sec SecondaryStorage) *RepositoryWrapper {
 	return &RepositoryWrapper{
 		memstorage:       mes,
 		secondarystorage: sec,
@@ -25,7 +25,7 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 	retval, err := rw.memstorage.SetGauge(name, val)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(&rw.memstorage)
+			errs := rw.secondarystorage.Save(rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}
@@ -38,7 +38,7 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 	retval, err := rw.memstorage.IncCounter(name, val)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(&rw.memstorage)
+			errs := rw.secondarystorage.Save(rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}
@@ -63,7 +63,7 @@ func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
 	err := rw.memstorage.AddMetrics(m)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(&rw.memstorage)
+			errs := rw.secondarystorage.Save(rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}

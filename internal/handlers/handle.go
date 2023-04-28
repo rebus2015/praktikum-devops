@@ -41,7 +41,9 @@ const templ = `{{define "metrics"}}
 </html>
 {{end}}`
 
-type metricContextKey struct{}
+type multipleMetricsContextKey struct{}
+
+type singleMetricContextKey struct{}
 
 var contentTypes = []string{
 	"application/javascript",
@@ -123,7 +125,7 @@ func UpdateJSONMultipleMetricHandlerFunc(
 	key string,
 ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metrics, ok := r.Context().Value(metricContextKey{}).([]*model.Metrics)
+		metrics, ok := r.Context().Value(multipleMetricsContextKey{}).([]*model.Metrics)
 		if !ok {
 			log.Printf(
 				"Error: [UpdateJSONMultipleMetricHandlerFunc] Metric info not found in context status-'500'",
@@ -183,7 +185,7 @@ func UpdateJSONMetricHandlerFunc(
 	key string,
 ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
+		metric, ok := r.Context().Value(singleMetricContextKey{}).(*model.Metrics)
 		if !ok {
 			log.Printf(
 				"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
@@ -302,7 +304,7 @@ func GetJSONMetricHandlerFunc(
 	key string,
 ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric, ok := r.Context().Value(metricContextKey{}).(*model.Metrics)
+		metric, ok := r.Context().Value(singleMetricContextKey{}).(*model.Metrics)
 		if !ok {
 			log.Printf("Error: [getJSONMetricHandlerFunc] Metric info not found in context")
 			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
@@ -382,7 +384,13 @@ func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Hand
 
 			metric := &model.Metrics{}
 			decoder := json.NewDecoder(reader)
-			defer r.Body.Close()
+			// defer func() {
+			// 	err := r.Body.Close()
+			// 	if err != nil {
+			// 		log.Printf("defered request body close Error:'%v'", err)
+			// 		http.Error(w, err.Error(), http.StatusBadRequest)
+			// 	}
+			// }()
 
 			if err := decoder.Decode(metric); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -432,7 +440,7 @@ func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Hand
 					return
 				}
 			}
-			ctx := context.WithValue(r.Context(), metricContextKey{}, metric)
+			ctx := context.WithValue(r.Context(), singleMetricContextKey{}, metric)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -479,7 +487,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 				}
 			}
 
-			ctx := context.WithValue(r.Context(), metricContextKey{}, metrics)
+			ctx := context.WithValue(r.Context(), multipleMetricsContextKey{}, metrics)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

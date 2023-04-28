@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -62,7 +63,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback().Error()
+	defer func() { _ = tx.Rollback() }()
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
 			"name":  metric,
@@ -136,6 +137,7 @@ func (pgs *PostgreSQLStorage) Restore() (*memstorage.MemStorage, error) {
 	return &memstorage.MemStorage{
 			Counters: counters,
 			Gauges:   gauges,
+			Mux:      &sync.RWMutex{},
 		},
 		nil
 }
