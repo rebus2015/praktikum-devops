@@ -148,6 +148,7 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 	m.Mux.RLock()
 	defer m.Mux.RUnlock()
 	log.Println("MemStorage GetCounter check Counters map")
+
 	if _, ok := m.Counters[name]; !ok {
 		log.Printf(
 			"counter with name '%v' is not found",
