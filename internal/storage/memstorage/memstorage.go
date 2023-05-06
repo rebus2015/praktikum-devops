@@ -80,14 +80,6 @@ func NewStorage() *MemStorage {
 	}
 }
 
-// func (m *MemStorage) Mutex() (*sync.RWMutex, error) {
-// 	if m.Mu == nil {
-// 		log.Println("ERROR MemStorage Mutex is nil")
-// 		return nil, fmt.Errorf("ERROR MemStorage Mutex is nil")
-// 	}
-// 	return m.Mu, nil
-// }
-
 func (m *MemStorage) SetGauge(name string, val interface{}) (float64, error) {
 	m.Mux.Lock()
 	defer m.Mux.Unlock()
@@ -187,8 +179,6 @@ func (m *MemStorage) GetView() ([]MetricStr, error) {
 }
 
 func (m *MemStorage) AddMetrics(metrics []*model.Metrics) error {
-	m.Mux.Lock()
-	defer m.Mux.Unlock()
 	for _, metric := range metrics {
 		switch metric.MType {
 		case counter:
