@@ -277,6 +277,37 @@ func sendreq(r *http.Request, c *http.Client) error {
 	return nil
 }
 
+func (m *metricset) updWorker(ctx context.Context, pollInterval time.Duration) {
+	ticker := time.NewTicker(pollInterval)
+	for {
+		select {
+		case <-ticker.C:
+			m.Update()
+		case <-ctx.Done():
+			log.Println("updWorker stopped")
+		}
+	}
+}
+
+func (m *metricset) sndWorker(ctx context.Context, cfg *config, errCh chan<- error) {
+	ticker := time.NewTicker(cfg.ReportInterval)
+	defer close(errCh)
+	for {
+		select {
+		case <-ticker.C:
+			err := m.updateSendMultiple(cfg)
+			if err != nil {
+				errCh <- fmt.Errorf("error send metrics: %w", err)
+				// log.Printf("Error send metrics: %v\n", err)
+				// return
+			}
+		case <-ctx.Done():
+			log.Println("sndWorker stopped")
+			return
+		}
+	}
+}
+
 func main() {
 	m := metricset{}
 	m.Declare()
@@ -286,36 +317,32 @@ func main() {
 		return
 	}
 	log.Printf("agent started on %v", cfg.ServerAddress)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	sigChan := make(chan os.Signal, 1)
+	errCh := make(chan error) // создаём канал, из которого будем ждать ошибку
 
 	signal.Notify(sigChan,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-
-	updticker := time.NewTicker(cfg.PollInterval)
-	sndticker := time.NewTicker(cfg.ReportInterval)
+	// wg := &sync.WaitGroup{}
+	// errCh := make(chan error)
+	// stopCh := make(chan struct{})
+	go m.updWorker(ctx, cfg.ReportInterval)
+	go m.sndWorker(ctx, cfg, errCh)
 
 	for {
 		select {
-		case <-updticker.C:
-			{
-				m.Update()
-			}
-		case <-sndticker.C:
-			{
-				err := m.updateSendMultiple(cfg)
-				if err != nil {
-					log.Printf("Error send metrics: %v\n", err)
-				}
-			}
 		case q := <-sigChan:
-			{
-				log.Printf("Signal notification: %v\n", q)
-				updticker.Stop()
-				sndticker.Stop()
-				os.Exit(0)
+			cancel()
+			log.Printf("Signal notification: %v\n", q)
+			os.Exit(0)
+
+		case err := <-errCh:
+			if err != nil {
+				log.Println(err)
+				// return
 			}
 		}
 	}
