@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
+	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
@@ -73,34 +74,37 @@ func (m *metricset) Declare() {
 	}
 
 	m.gauges = map[string]gauge{
-		"Alloc":         0,
-		"BuckHashSys":   0,
-		"Frees":         0,
-		"GCCPUFraction": 0,
-		"GCSys":         0,
-		"HeapAlloc":     0,
-		"HeapIdle":      0,
-		"HeapInuse":     0,
-		"HeapObjects":   0,
-		"HeapReleased":  0,
-		"HeapSys":       0,
-		"LastGC":        0,
-		"Lookups":       0,
-		"MCacheInuse":   0,
-		"MCacheSys":     0,
-		"MSpanInuse":    0,
-		"MSpanSys":      0,
-		"Mallocs":       0,
-		"NextGC":        0,
-		"NumForcedGC":   0,
-		"NumGC":         0,
-		"OtherSys":      0,
-		"PauseTotalNs":  0,
-		"StackInuse":    0,
-		"StackSys":      0,
-		"Sys":           0,
-		"TotalAlloc":    0,
-		"RandomValue":   0,
+		"Alloc":           0,
+		"BuckHashSys":     0,
+		"Frees":           0,
+		"GCCPUFraction":   0,
+		"GCSys":           0,
+		"HeapAlloc":       0,
+		"HeapIdle":        0,
+		"HeapInuse":       0,
+		"HeapObjects":     0,
+		"HeapReleased":    0,
+		"HeapSys":         0,
+		"LastGC":          0,
+		"Lookups":         0,
+		"MCacheInuse":     0,
+		"MCacheSys":       0,
+		"MSpanInuse":      0,
+		"MSpanSys":        0,
+		"Mallocs":         0,
+		"NextGC":          0,
+		"NumForcedGC":     0,
+		"NumGC":           0,
+		"OtherSys":        0,
+		"PauseTotalNs":    0,
+		"StackInuse":      0,
+		"StackSys":        0,
+		"Sys":             0,
+		"TotalAlloc":      0,
+		"RandomValue":     0,
+		"TotalMemory":     0,
+		"FreeMemory":      0,
+		"CPUutilization1": 0,
 	}
 }
 
@@ -109,7 +113,17 @@ const (
 	Count string = "counter"
 )
 
-func (m *metricset) Update() {
+func (m *metricset) updatePs() {
+	ms, _ := mem.VirtualMemory()
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	m.gauges["TotalMemory"] = gauge(ms.Total)
+	m.gauges["FreeMemory"] = gauge(ms.Free)
+	m.gauges["CPUutilization1"] = gauge(ms.UsedPercent)
+}
+
+func (m *metricset) updateRuntime() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 	m.mux.Lock()
@@ -277,12 +291,24 @@ func sendreq(r *http.Request, c *http.Client) error {
 	return nil
 }
 
-func (m *metricset) updWorker(ctx context.Context, pollInterval time.Duration) {
+func (m *metricset) updWorkerRuntime(ctx context.Context, pollInterval time.Duration) {
 	ticker := time.NewTicker(pollInterval)
 	for {
 		select {
 		case <-ticker.C:
-			m.Update()
+			m.updateRuntime()
+		case <-ctx.Done():
+			log.Println("updWorker stopped")
+		}
+	}
+}
+
+func (m *metricset) updWorkerPs(ctx context.Context, pollInterval time.Duration) {
+	ticker := time.NewTicker(pollInterval)
+	for {
+		select {
+		case <-ticker.C:
+			m.updatePs()
 		case <-ctx.Done():
 			log.Println("updWorker stopped")
 		}
@@ -329,7 +355,8 @@ func main() {
 	// wg := &sync.WaitGroup{}
 	// errCh := make(chan error)
 	// stopCh := make(chan struct{})
-	go m.updWorker(ctx, cfg.ReportInterval)
+	go m.updWorkerRuntime(ctx, cfg.ReportInterval)
+	go m.updWorkerPs(ctx, cfg.ReportInterval)
 	go m.sndWorker(ctx, cfg, errCh)
 
 	for {
