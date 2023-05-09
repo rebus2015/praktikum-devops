@@ -1,4 +1,4 @@
-package agentworkerspool
+package agent
 
 import (
 	"context"
@@ -7,26 +7,23 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
-type ExecutionFn func(ctx context.Context, args interface{}) error
-
-type JobDescriptor struct {
-	ID int
-}
+type ExecutionFn func(ctx context.Context, args Args) error
 
 type Result struct {
 	Err        error
-	Descriptor JobDescriptor
+	Descriptor int
 }
 
 type Args struct {
-	client *http.Client
-	metric model.Metrics
+	Client  *http.Client
+	Metrics []*model.Metrics
+	Config  *Config
 }
 
 type Job struct {
-	Descriptor JobDescriptor
+	Descriptor int
 	ExecFn     ExecutionFn
-	Args       interface{}
+	Args       Args
 }
 
 func (j Job) execute(ctx context.Context) Result {
