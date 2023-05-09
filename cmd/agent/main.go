@@ -181,20 +181,16 @@ func (m *metricset) flushCounter(c string) {
 	m.counters[c] = 0
 }
 
-func (m *metricset) updateSendMultiple(cfg *config) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	defer cancel()
-	client := &http.Client{}
+func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 	metricList := []*model.Metrics{}
-	// собираем статистику для gauge
 	for g := range m.gauges {
 		gmetric := m.get(Gauge, g)
-		if cfg.Key != "" {
-			hashObject := signer.NewHashObject(cfg.Key)
+		if key != "" {
+			hashObject := signer.NewHashObject(key)
 			err := hashObject.Sign(gmetric)
 			if err != nil {
 				log.Printf("Error Sign gauges Statistic: %v,\n Gauge:%v", err, gmetric)
-				return err
+				return nil, err
 			}
 		}
 		metricList = append(metricList, gmetric)
@@ -203,19 +199,30 @@ func (m *metricset) updateSendMultiple(cfg *config) error {
 	// собираем статистику counter
 	for c := range m.counters {
 		cmetric := m.get(Count, c)
-		if cfg.Key != "" {
-			hashObject := signer.NewHashObject(cfg.Key)
+		if key != "" {
+			hashObject := signer.NewHashObject(key)
 			err := hashObject.Sign(cmetric)
 			if err != nil {
 				log.Printf("Error Sign counter Statistic: %v,\n Counter: %v", err, cmetric)
-				return err
+				return nil, err
 			}
 		}
 		metricList = append(metricList, cmetric)
 		m.flushCounter(c)
 	}
+	return metricList, nil
+}
 
-	err := sendreq(request(ctx, metricList, cfg), client)
+func (m *metricset) updateSendMultiple(cfg *config) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	client := &http.Client{}
+	metricList, err := m.gatherJSONMetrics(cfg.Key)
+	if err != nil {
+		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
+		return err
+	}
+	err = sendreq(request(ctx, metricList, cfg), client)
 	if err != nil {
 		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
 		return err
@@ -324,8 +331,6 @@ func (m *metricset) sndWorker(ctx context.Context, cfg *config, errCh chan<- err
 			err := m.updateSendMultiple(cfg)
 			if err != nil {
 				errCh <- fmt.Errorf("error send metrics: %w", err)
-				// log.Printf("Error send metrics: %v\n", err)
-				// return
 			}
 		case <-ctx.Done():
 			log.Println("sndWorker stopped")
