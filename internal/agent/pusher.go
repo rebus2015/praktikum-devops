@@ -1,9 +1,11 @@
-package agentworkerspool
+package agent
 
 import (
 	"context"
 	"fmt"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan Job, errCh chan<- Result) {
@@ -60,6 +62,7 @@ func (wp WorkerPool) ErrCh() <-chan Result {
 }
 
 func (wp WorkerPool) GenerateFrom(jobsBulk []Job) {
+	log.Printf("Generated Jobs channel from %v jobs", len(jobsBulk))
 	for i := range jobsBulk {
 		wp.jobs <- jobsBulk[i]
 	}

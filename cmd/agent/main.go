@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"math/big"
@@ -18,33 +17,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/caarlos0/env"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/rebus2015/praktikum-devops/internal/agent"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/signer"
 )
-
-type config struct {
-	ServerAddress  string        `env:"ADDRESS"`
-	ReportInterval time.Duration `env:"PUSH_TIMEOUT"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
-	Key            string        `env:"KEY"`
-}
-
-func getConfig() (*config, error) {
-	conf := config{}
-	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
-	flag.DurationVar(&conf.ReportInterval, "r", time.Second*11, "Interval before push metrics to server")
-	flag.DurationVar(&conf.PollInterval, "p", time.Second*5, "Interval between metrics reads from runtime")
-	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
-
-	flag.Parse()
-	err := env.Parse(&conf)
-
-	return &conf, err
-}
 
 type gauge float64
 
@@ -213,24 +192,6 @@ func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 	return metricList, nil
 }
 
-func (m *metricset) updateSendMultiple(cfg *config) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	defer cancel()
-	client := &http.Client{}
-	metricList, err := m.gatherJSONMetrics(cfg.Key)
-	if err != nil {
-		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
-		return err
-	}
-	err = sendreq(request(ctx, metricList, cfg), client)
-	if err != nil {
-		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
-		return err
-	}
-
-	return nil
-}
-
 func (m *metricset) get(mtype string, name string) *model.Metrics {
 	metric := model.Metrics{
 		ID:    name,
@@ -259,7 +220,7 @@ func (m *metricset) get(mtype string, name string) *model.Metrics {
 	return &metric
 }
 
-func request(ctx context.Context, metrics []*model.Metrics, cfg *config) *http.Request {
+func request(ctx context.Context, metrics []*model.Metrics, cfg *agent.Config) *http.Request {
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
@@ -280,8 +241,9 @@ func request(ctx context.Context, metrics []*model.Metrics, cfg *config) *http.R
 	return req
 }
 
-func sendreq(r *http.Request, c *http.Client) error {
-	response, err := c.Do(r)
+func sendreq(ctx context.Context, args agent.Args) error {
+	r := request(ctx, args.Metrics, args.Config)
+	response, err := args.Client.Do(r)
 	if err != nil {
 		log.Printf("Send request error: %v", err)
 		return err
@@ -322,13 +284,64 @@ func (m *metricset) updWorkerPs(ctx context.Context, pollInterval time.Duration)
 	}
 }
 
-func (m *metricset) sndWorker(ctx context.Context, cfg *config, errCh chan<- error) {
+func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) error {
+	// ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	// defer cancel()
+	client := &http.Client{}
+	metricList, err := m.gatherJSONMetrics(cfg.Key)
+	if err != nil {
+		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
+		return err
+	}
+	jobs := []agent.Job{}
+	length := len(metricList)
+	for i := 0; i < length; i += 2 {
+		var section []*model.Metrics
+		if i > length-4 {
+			section = metricList[i:]
+		} else {
+			section = metricList[i : i+4]
+		}
+		jobs = append(jobs, agent.Job{
+			Descriptor: i,
+			ExecFn:     sendreq,
+			Args: agent.Args{
+				Client:  client,
+				Metrics: section,
+				Config:  cfg,
+			},
+		})
+	}
+	wp := agent.New(cfg.RateLimit)
+
+	go wp.GenerateFrom(jobs)
+	go wp.Run(ctx)
+
+	for {
+		select {
+		case r, ok := <-wp.ErrCh():
+			if !ok {
+				continue
+			}
+			if r.Err != nil {
+				log.Printf("unexpected error: %v from worker on Job %v", r.Err, r.Descriptor)
+			}
+			log.Printf("worker processed Job %v", r.Descriptor)
+
+		case <-wp.Done:
+			log.Printf("worker FINISHED")
+			return nil
+		}
+	}
+}
+
+func (m *metricset) sndWorker(ctx context.Context, cfg *agent.Config, errCh chan<- error) {
 	ticker := time.NewTicker(cfg.ReportInterval)
 	defer close(errCh)
 	for {
 		select {
 		case <-ticker.C:
-			err := m.updateSendMultiple(cfg)
+			err := m.updateSendMultiple(ctx, cfg)
 			if err != nil {
 				errCh <- fmt.Errorf("error send metrics: %w", err)
 			}
@@ -342,7 +355,7 @@ func (m *metricset) sndWorker(ctx context.Context, cfg *config, errCh chan<- err
 func main() {
 	m := metricset{}
 	m.Declare()
-	cfg, err := getConfig()
+	cfg, err := agent.GetConfig()
 	if err != nil {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
@@ -357,9 +370,7 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	// wg := &sync.WaitGroup{}
-	// errCh := make(chan error)
-	// stopCh := make(chan struct{})
+
 	go m.updWorkerRuntime(ctx, cfg.ReportInterval)
 	go m.updWorkerPs(ctx, cfg.ReportInterval)
 	go m.sndWorker(ctx, cfg, errCh)
