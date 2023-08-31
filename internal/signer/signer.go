@@ -1,3 +1,5 @@
+// Пакет signer выполняет функцию проверки целостнсти данных при обмене метриками между клиентом и сервисом
+// Выполняет функции подписи данных в структуре данных и их верификацию генерируя SHA256 HMAC Hash
 package signer
 
 import (
@@ -11,20 +13,24 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
+// HashObject подпись
 type HashObject struct {
 	key string
 }
 
-type Signer interface {
-	Sign(m *model.Metrics) error
-	Verify(m *model.Metrics) (bool, error)
-}
+// // Signer интерфейес утилиты подписи и верификации данных
+// type Signer interface {
+// 	Sign(m *model.Metrics) error
+// 	Verify(m *model.Metrics) (bool, error)
+// }
 
-func NewHashObject(key string) Signer {
+// NewHashObject
+func NewHashObject(key string) HashObject {
 	h := HashObject{key: key}
-	return &h
+	return h
 }
 
+// Sign формирование подписи для метрики
 func (s *HashObject) Sign(m *model.Metrics) error {
 	src, err := srcString(m)
 	if err != nil {
@@ -38,6 +44,7 @@ func (s *HashObject) Sign(m *model.Metrics) error {
 	return nil
 }
 
+// Verify проверка целостности пришедших данных
 func (s *HashObject) Verify(m *model.Metrics) (bool, error) {
 	src, err := srcString(m)
 	if err != nil {
@@ -50,6 +57,7 @@ func (s *HashObject) Verify(m *model.Metrics) (bool, error) {
 	return m.Hash == h, nil
 }
 
+// hash формирование  hash shá56 от указанной строки с ключом key
 func hash(src string, key string) (string, error) {
 	h := hmac.New(sha256.New, []byte(key))
 	_, err := h.Write([]byte(src))
@@ -60,6 +68,7 @@ func hash(src string, key string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
+// srcString получение текстового предстваления метрики для создания хэша
 func srcString(model *model.Metrics) (string, error) {
 	switch model.MType {
 	case "gauge":

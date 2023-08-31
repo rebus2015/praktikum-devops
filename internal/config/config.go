@@ -1,3 +1,5 @@
+// Пакет config выполняет функцию параметризации сервиса сбора метрик
+// Поддерживает задание параметров запуска через переменные окружения и параметры командной строки.
 package config
 
 import (
@@ -7,6 +9,7 @@ import (
 	"github.com/caarlos0/env"
 )
 
+// Config хранит получныые занчеия конфигурации.
 type Config struct {
 	ServerAddress    string        `env:"ADDRESS"`
 	StoreInterval    time.Duration `env:"STORE_INTERVAL"` // 0 - синхронная запись
@@ -16,6 +19,7 @@ type Config struct {
 	ConnectionString string        `env:"DATABASE_DSN"`   // Cтрока подключения к БД
 }
 
+// GetConfig считывает значения параметров запуска и возвращает структуру.
 func GetConfig() (*Config, error) {
 	conf := Config{}
 

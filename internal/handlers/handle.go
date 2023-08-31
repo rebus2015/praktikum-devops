@@ -1,3 +1,5 @@
+// Пакет handlers создает экземпляр роутера и описывает все доступные эндпоинты
+// Содержит реализацию необходимого middleware.
 package handlers
 
 import (
@@ -20,6 +22,7 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 )
 
+// Шаблон html-страницы для вывода всех имеющихся метрик.
 const templ = `{{define "metrics"}}
 <!doctype html>
 <html lang="ru" class="h-100">
@@ -61,6 +64,7 @@ const (
 	compressed string = `gzip`
 )
 
+// NewRouter инициализация роутера с помощью библиотеки chi и описание доступных эндпоинтов.
 func NewRouter(
 	metricStorage storage.Repository,
 	postgreStorage dbstorage.SQLStorage,
@@ -101,6 +105,7 @@ func NewRouter(
 	return r
 }
 
+// GetDBConnState реализует пинг состояния БД.
 func GetDBConnState(
 	sqlStorage dbstorage.SQLStorage,
 ) func(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +125,7 @@ func GetDBConnState(
 	}
 }
 
+// UpdateJSONMultipleMetricHandlerFunc обрабатывает обновления значений метрик, которыые приходят в виде массивов JSON.
 func UpdateJSONMultipleMetricHandlerFunc(
 	metricStorage storage.Repository,
 	key string,
@@ -180,6 +186,7 @@ func UpdateJSONMultipleMetricHandlerFunc(
 	}
 }
 
+// UpdateJSONMetricHandlerFunc обрабатывает обновления одиночных значений метрик в формате JSON.
 func UpdateJSONMetricHandlerFunc(
 	metricStorage storage.Repository,
 	key string,
@@ -272,6 +279,7 @@ func UpdateJSONMetricHandlerFunc(
 	}
 }
 
+// UpdateMetricHandlerFunc обрабатывает обновления одиночных значений метрик из тела URL.
 func UpdateMetricHandlerFunc(
 	metricStorage storage.Repository,
 ) func(w http.ResponseWriter, r *http.Request) {
@@ -299,6 +307,7 @@ func UpdateMetricHandlerFunc(
 	}
 }
 
+// GetJSONMetricHandlerFunc возвращает значение метрики по ключу в формате JSON.
 func GetJSONMetricHandlerFunc(
 	metricStorage storage.Repository,
 	key string,
@@ -365,6 +374,7 @@ func GetJSONMetricHandlerFunc(
 	}
 }
 
+// MiddlewareGeneratorSingleJSON промежуточная функция обработки одиночной метрики в формате JSON.
 func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -384,13 +394,6 @@ func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Hand
 
 			metric := &model.Metrics{}
 			decoder := json.NewDecoder(reader)
-			// defer func() {
-			// 	err := r.Body.Close()
-			// 	if err != nil {
-			// 		log.Printf("defered request body close Error:'%v'", err)
-			// 		http.Error(w, err.Error(), http.StatusBadRequest)
-			// 	}
-			// }()
 
 			if err := decoder.Decode(metric); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -446,6 +449,7 @@ func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Hand
 	}
 }
 
+// MiddlewareGeneratorMultipleJSON промежуточная функция обработки vfccbdf метрик в формате JSON.
 func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -493,6 +497,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 	}
 }
 
+// MiddlewareGeneratorMultipleJSON промежуточная функция обработки vfccbdf метрик в формате JSON.
 func GetMetricHandlerFunc(
 	metricStorage storage.Repository,
 ) func(w http.ResponseWriter, r *http.Request) {
@@ -546,6 +551,7 @@ func GetMetricHandlerFunc(
 	}
 }
 
+// GetAllHandler возвращает значения всех метрик в виде html-страницы.
 func GetAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		metrics, err := metricStorage.GetView()
@@ -568,6 +574,7 @@ func GetAllHandler(metricStorage storage.Repository) func(w http.ResponseWriter,
 	}
 }
 
+// checkMetric внутренняя функция проверки целостности метрики.
 func checkMetric(metric *model.Metrics, key string) (bool, error) {
 	if metric.ID == "" {
 		return false, fmt.Errorf("metric.ID is empty /n Body: %v", metric)
