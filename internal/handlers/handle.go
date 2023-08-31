@@ -9,8 +9,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
@@ -72,7 +72,7 @@ func NewRouter(
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
-
+	r.Mount("/debug", middleware.Profiler())
 	r.Get("/", GetAllHandler(metricStorage))
 
 	r.Get("/ping", GetDBConnState(postgreStorage))
@@ -143,8 +143,8 @@ func UpdateJSONMultipleMetricHandlerFunc(
 			)
 			return
 		}
-
-		retval := []model.Metrics{}
+		l := len(metrics)
+		retval := make([]model.Metrics, l)
 		for i, m := range metrics {
 			if key != "" {
 				hashObject := signer.NewHashObject(key)
@@ -157,13 +157,13 @@ func UpdateJSONMultipleMetricHandlerFunc(
 					http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
 				}
 			}
-			retval = append(retval, model.Metrics{
+			retval[i] = model.Metrics{
 				ID:    m.ID,
 				MType: m.MType,
 				Value: m.Value,
 				Delta: m.Delta,
 				Hash:  m.Hash,
-			})
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")

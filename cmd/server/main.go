@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof" // #nosec
 	"time"
 
 	log "github.com/sirupsen/logrus"
