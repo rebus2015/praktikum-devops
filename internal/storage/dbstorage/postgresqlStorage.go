@@ -61,6 +61,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 
 	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
 	if err != nil {
+		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
 		return err
 	}
 	defer func() {
@@ -98,14 +99,15 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 	// шаг 4 — сохраняем изменения
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("failed to execute transaction %w", err)
+		log.Printf("Error failed to Commit transaction %v", err)
+		return fmt.Errorf("failed to Commit transaction %w", err)
 	}
 
 	return nil
 }
 
 func (pgs *PostgreSQLStorage) Restore() (*memstorage.MemStorage, error) {
-	ctx, cancel := context.WithTimeout(pgs.context, time.Second*5)
+	ctx, cancel := context.WithTimeout(pgs.context, time.Second*25)
 	defer cancel()
 	counters := make(map[string]int64)
 	gauges := make(map[string]float64)
@@ -134,6 +136,7 @@ func (pgs *PostgreSQLStorage) Restore() (*memstorage.MemStorage, error) {
 	// проверяем на ошибки
 	err = rows.Err()
 	if err != nil {
+		log.Printf("Error trying to get all metircs, query: '%s' error: %v", SetMetricQuery, err)
 		return nil, err
 	}
 	return &memstorage.MemStorage{
@@ -149,7 +152,7 @@ func (pgs *PostgreSQLStorage) SaveTicker(storeint time.Duration, ms *memstorage.
 	for range ticker.C {
 		errs := pgs.Save(ms)
 		if errs != nil {
-			log.Printf("FileStorage Save error: %v", errs)
+			log.Printf("PostgreSQLStorage SaveTicker error: %v", errs)
 		}
 	}
 }
