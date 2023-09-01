@@ -36,13 +36,13 @@ func (f *FileStorage) SyncMode() bool {
 func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
 	writer, err := newWriter(f.StoreFile)
 	if err != nil {
-		log.Printf("Save metrics to file '%s' error: %v", f.StoreFile, err)
-		return fmt.Errorf("Save metrics to file '%s' error:%w", f.StoreFile, err)
+		log.Printf("Error FileStorage Save metrics to file '%s' error: %v", f.StoreFile, err)
+		return fmt.Errorf("Error FileStorage Save metrics to file '%s' error:%w", f.StoreFile, err)
 	}
 
 	err = writer.encoder.Encode(ms)
 	if err != nil {
-		log.Printf("Save metrics to file '%s' Encode error: %v", f.StoreFile, err)
+		log.Printf("Error FileStorage Save metrics to file '%s' Encode error: %v", f.StoreFile, err)
 		return err
 	}
 	return nil
