@@ -101,7 +101,6 @@ func NewRouter(
 			r.Get("/", GetMetricHandlerFunc(metricStorage))
 		})
 	})
-
 	return r
 }
 
