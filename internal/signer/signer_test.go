@@ -3,9 +3,11 @@
 package signer
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +37,7 @@ func TestHashObject_Sign(t *testing.T) {
 					Hash:  "",
 				},
 				"SuperSecretKey",
-				"wjhfwbwih388",
+				"a3afa5537e12b6a83f982b8a286031b03d26ee12eb43f24c83beacff3ed81f87",
 			},
 			false,
 		},
@@ -55,34 +57,45 @@ func TestHashObject_Sign(t *testing.T) {
 }
 
 func TestHashObject_Verify(t *testing.T) {
-	type fields struct {
-		key string
-	}
 	type args struct {
-		m *model.Metrics
+		m    *model.Metrics
+		key  string
+		hash string
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    bool
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			"1st positive",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "gauge",
+					Delta: nil,
+					Value: ptr(float64(7268679680)),
+					Hash:  "wjhfwbwih388",
+				},
+				"SuperSecretKey",
+				"wjhfwbwih388",
+			},
+			false,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &HashObject{
-				key: tt.fields.key,
+				key: tt.args.key,
 			}
 			got, err := s.Verify(tt.args.m)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HashObject.Verify() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("HashObject.Verify() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, fmt.Errorf("HashObject.Verify() = %v, want %v", got, tt.want))
 		})
 	}
 }
