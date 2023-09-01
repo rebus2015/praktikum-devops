@@ -30,7 +30,6 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
 	flag.StringVar(&conf.ConnectionString, "d", "",
 		"Database connection string(PostgreSql)") // postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable
-
 	flag.Parse()
 
 	err := env.Parse(&conf)
