@@ -9,14 +9,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 type testSQLdbStorage struct{}
@@ -294,4 +294,58 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 
 func Ptr[T any](v T) *T {
 	return &v
+}
+
+func Test_checkMetric(t *testing.T) {
+	type args struct {
+		metric *model.Metrics
+		key    string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			"test 1 negative",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "gauge",
+					Delta: nil,
+					Value: ptr(float64(7268679680)),
+					Hash:  "a3afa5537e12b6a83f982b8a286031b03d26ee12eb43f24c83beacff3ed81f87",
+				},
+				"SuperSecretKey",
+			},
+			false,
+			true,
+		},
+		{
+			"test 2 positive",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "gauge",
+					Delta: nil,
+					Value: ptr(float64(7268679680)),
+					Hash:  "aed2c239d3824aa6a0013258d4c748a786b5de3dfa739919c5b741eb1bd30af9",
+				},
+				"SuperSecretKey",
+			},
+			true,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := checkMetric(tt.args.metric, tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("checkMetric() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, got, tt.want)
+		})
+	}
 }

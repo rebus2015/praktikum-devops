@@ -99,3 +99,79 @@ func TestHashObject_Verify(t *testing.T) {
 		})
 	}
 }
+
+func Test_hash(t *testing.T) {
+	type args struct {
+		src string
+		key string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"1st positive",
+			args{
+				src: "srcStringforTest",
+				key: "superSecretKey",
+			},
+			"f32c0c974fcd64152114df2098df1b77694669fc25338e8b0c8b88122da98bf4",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := hash(tt.args.src, tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("hash() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("hash() = %v, want %v", got, tt.want)
+			}
+			assert.Equal(t, got, tt.want)
+		})
+	}
+}
+
+func Test_srcString(t *testing.T) {
+	type args struct {
+		model *model.Metrics
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			"1st positive",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "gauge",
+					Delta: nil,
+					Value: ptr(float64(7268679680)),
+					Hash:  "wjhfwbwih388",
+				},
+			},
+			"TotalMemory:gauge:7268679680.000000",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := srcString(tt.args.model)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("srcString() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("srcString() = %v, want %v", got, tt.want)
+			}
+			assert.Equal(t, got, tt.want)
+		})
+	}
+}
