@@ -35,10 +35,10 @@ git fetch template && git checkout template/main .github
 
 Чтобы запустить страницу с документацией воспользуйтесь утилитой godoc, выполните следующую кманду: 
 ```
-godoc -http=:8088 -play
+godoc -http=:8090 -play
 ```
 По умолчанию godoc не отображает пакеты, расположенные в поддиректориях internal. 
 Чтобы увидеть служебные пакеты, добавьте в браузере параметр ?m=all: например, 
 ```
-http://localhost:8088/pkg/?m=all
+http://localhost:8090/pkg/?m=all
 ```
