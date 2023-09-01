@@ -347,11 +347,6 @@ func TestMemStorage_GetGauge(t *testing.T) {
 				t.Errorf("MemStorage.GetGauge() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err != nil {
-				assert.Equal(t, err != nil, tt.wantErr)
-				return
-			}
-
 			if got != tt.want {
 				t.Errorf("MemStorage.GetGauge() = %v, want %v", got, tt.want)
 			}
@@ -415,11 +410,6 @@ func TestMemStorage_GetCounter(t *testing.T) {
 				t.Errorf("MemStorage.GetGauge() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err != nil {
-				assert.Equal(t, err != nil, tt.wantErr)
-				return
-			}
-
 			if got != tt.want {
 				t.Errorf("MemStorage.GetGauge() = %v, want %v", got, tt.want)
 			}
