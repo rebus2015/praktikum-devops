@@ -385,7 +385,6 @@ func main() {
 		case err := <-errCh:
 			if err != nil {
 				log.Println(err)
-				// return
 			}
 		}
 	}
