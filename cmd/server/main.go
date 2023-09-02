@@ -66,11 +66,14 @@ func main() {
 	r := handlers.NewRouter(storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
 		Addr:         cfg.ServerAddress,
-		ReadTimeout:  60 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		Handler:      r,
 	}
 	err = srv.ListenAndServe()
+	log.Printf("server started \n address:%v \n database:%v,\n restore interval: %v ",
+		cfg.ServerAddress, cfg.ConnectionString, cfg.StoreInterval)
+
 	if err != nil {
 		log.Printf("server exited with %v", err)
 	}
