@@ -162,8 +162,7 @@ func (m *metricset) flushCounter(c string) {
 
 func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 	metricList := []*model.Metrics{}
-	m.mux.Lock()
-	defer m.mux.Unlock()
+	m.mux.RLock()
 	for g := range m.gauges {
 		gmetric := m.get(Gauge, g)
 		if key != "" {
@@ -191,6 +190,7 @@ func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 		metricList = append(metricList, cmetric)
 		m.flushCounter(c)
 	}
+	m.mux.RUnlock()
 	return metricList, nil
 }
 
