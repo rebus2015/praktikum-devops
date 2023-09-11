@@ -36,10 +36,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 
-	"github.com/rebus2015/praktikum-devops/cmd/staticlint/analyzers/custom"
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
+
+	"github.com/rebus2015/praktikum-devops/cmd/staticlint/analyzers/custom"
 )
 
 func Get() []*analysis.Analyzer {
