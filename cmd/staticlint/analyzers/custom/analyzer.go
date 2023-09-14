@@ -2,6 +2,7 @@
 package custom
 
 import (
+	"flag"
 	"fmt"
 	"go/ast"
 
@@ -9,9 +10,15 @@ import (
 )
 
 var OsExitAnalyzer = &analysis.Analyzer{
-	Name: "exitcheck",
-	Doc:  "check for os.exit usage in main.go file",
-	Run:  run,
+	Name:             "exitcheck",
+	Doc:              "check for os.exit usage in main.go file",
+	URL:              "",
+	Flags:            flag.FlagSet{},
+	Run:              run,
+	RunDespiteErrors: false,
+	Requires:         []*analysis.Analyzer{},
+	ResultType:       nil,
+	FactTypes:        []analysis.Fact{},
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
