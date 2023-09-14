@@ -42,3 +42,27 @@ godoc -http=:8090 -play
 ```
 http://localhost:8090/pkg/?m=all
 ```
+# Компиляция проекта
+Для сборки серверной части проекта выполните команду следующего вида (vN.N.NN - версия сборки, например, v1.0.15)
+```
+	go build -ldflags "-X 'main.buildVersion=vN.N.NN' -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=YOUR COMMIT TEXT'" cmd/server/main.go
+
+```
+Перед компиляцией проекта правильность заполнения параметров команды можно проверить запустив приложение, передав те же параметры. Например: 
+```
+go run -ldflags "-X 'main.buildVersion=v1.0.15' -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=LATEST COMMIT'" cmd/server/main.go
+
+ ```
+В результате приложение выводит в stdout 
+
+```
+Build version: v1.0.15
+Build date: 2023/09/11 00:22:46
+Build commit: LATEST COMMIT
+
+```
+Для сборки клиентской части проекта соответственно
+```
+	go build -ldflags "-X 'main.buildVersion=vN.N.NN' -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=YOUR COMMIT TEXT'" cmd/agent/main.go
+
+```

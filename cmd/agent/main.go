@@ -352,7 +352,17 @@ func (m *metricset) sndWorker(ctx context.Context, cfg *agent.Config, errCh chan
 	}
 }
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n\n", buildCommit)
+
 	m := metricset{}
 	m.Declare()
 	cfg, err := agent.GetConfig()
