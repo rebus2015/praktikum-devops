@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof" // #nosec
 	"time"
@@ -16,7 +17,17 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
+	fmt.Printf("version=%s, date=%s\n, version=%s", buildVersion, buildDate, buildVersion)
 	cfg, err := config.GetConfig()
 	if err != nil {
 		log.Panicf("Error reading configuration from env variables: %v", err)
