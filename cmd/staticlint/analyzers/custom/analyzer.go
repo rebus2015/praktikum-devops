@@ -1,3 +1,4 @@
+// Package custom реализует собственный анализатор кода
 package custom
 
 import (

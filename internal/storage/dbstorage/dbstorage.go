@@ -1,3 +1,4 @@
+// Package dbstorage реализует механизи взаимодействия с БД Postgresql
 package dbstorage
 
 import "database/sql"

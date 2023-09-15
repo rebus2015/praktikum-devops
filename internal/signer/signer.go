@@ -1,4 +1,4 @@
-// Пакет signer выполняет функцию проверки целостнсти данных при обмене метриками между клиентом и сервисом
+// Package signer выполняет функцию проверки целостнсти данных при обмене метриками между клиентом и сервисом
 // Выполняет функции подписи данных в структуре данных и их верификацию генерируя SHA256 HMAC Hash.
 package signer
 
@@ -24,7 +24,7 @@ type HashObject struct {
 // 	Verify(m *model.Metrics) (bool, error)
 // }
 
-// NewHashObject
+// NewHashObject creation
 func NewHashObject(key string) HashObject {
 	h := HashObject{key: key}
 	return h

@@ -71,13 +71,13 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 		return err
 	}
 
-	// defer func() {
+	defer func() {
 
-	// 	rberr := tx.Rollback()
-	// 	if rberr != nil {
-	// 		log.Printf("failed to rollback transaction err: %v", rberr)
-	// 	}
-	// }()
+		rberr := tx.Rollback()
+		if rberr != nil {
+			log.Printf("failed to rollback transaction err: %v", rberr)
+		}
+	}()
 
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
