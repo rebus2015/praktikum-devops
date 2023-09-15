@@ -26,8 +26,8 @@ var (
 func main() {
 	fmt.Printf("Build version: %s\n", buildVersion)
 	fmt.Printf("Build date: %s\n", buildDate)
-	fmt.Printf("Build commit: %s\n", buildCommit)
-	fmt.Printf("version=%s, date=%s\n, version=%s", buildVersion, buildDate, buildVersion)
+	fmt.Printf("Build commit: %s\n\n", buildCommit)
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		log.Panicf("Error reading configuration from env variables: %v", err)
