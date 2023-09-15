@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
+
+	// "sync"
 	"testing"
 	"time"
 
@@ -96,7 +98,6 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 	counters := map[string]int64{
 		"metric2": 101,
 	}
-
 	ms, err := pgs.Restore(ctx)
 	if err != nil {
 		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
