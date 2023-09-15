@@ -11,11 +11,11 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPostgreSQLStorage_Ping(t *testing.T) {
-
 	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -80,11 +80,11 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 	defer cancel()
 
-	mockDb := mock.NewRows([]string{"name", "type", "value", "delta"}).
+	mockDB := mock.NewRows([]string{"name", "type", "value", "delta"}).
 		AddRow("metric1", "gauge", "231.12", nil).
 		AddRow("metric2", "counter", nil, "101")
 
-	mock.ExpectQuery(regexp.QuoteMeta(GetMetricsQuery)).WillReturnRows(mockDb)
+	mock.ExpectQuery(regexp.QuoteMeta(GetMetricsQuery)).WillReturnRows(mockDB)
 
 	pgs := &PostgreSQLStorage{
 		connection: db,
