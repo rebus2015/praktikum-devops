@@ -1,3 +1,4 @@
+// Package memstorage реализует хранилище метрик в оперативной памяти
 package memstorage
 
 import (

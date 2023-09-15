@@ -390,7 +390,7 @@ func main() {
 		case q := <-sigChan:
 			cancel()
 			log.Printf("Signal notification: %v\n", q)
-			os.Exit(0)
+			syscall.Exit(0)
 
 		case err := <-errCh:
 			if err != nil {

@@ -4,13 +4,15 @@ import (
 	"context"
 	"reflect"
 	"regexp"
-	"sync"
+
+	// "sync"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+
+	// "github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -91,15 +93,14 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 		Sync:       false,
 		context:    ctx,
 	}
-	msExpected := memstorage.MemStorage{
-		Gauges: map[string]float64{
-			"metric1": 231.12,
-		},
-		Counters: map[string]int64{
-			"metric2": 101,
-		},
-		Mux: &sync.RWMutex{},
+
+	gauges := map[string]float64{
+		"metric1": 231.12,
 	}
+	counters := map[string]int64{
+		"metric2": 101,
+	}
+
 	ms, err := pgs.Restore()
 	if err != nil {
 		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
@@ -109,8 +110,8 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 
-	assert.True(t, reflect.DeepEqual(msExpected.Counters, ms.Counters))
-	assert.True(t, reflect.DeepEqual(msExpected.Gauges, ms.Gauges))
+	assert.True(t, reflect.DeepEqual(gauges, ms.Gauges))
+	assert.True(t, reflect.DeepEqual(counters, ms.Counters))
 }
 
 // func TestPostgreSQLStorage_Save(t *testing.T) {
@@ -118,14 +119,16 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 // 	if err != nil {
 // 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 // 	}
-// 	defer db.Close()
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
-// 	defer cancel()
+// 	ctx := context.Background()
+
+// 	defer func() {
+// 		db.Close()
+// 	}()
 
 // 	mock.ExpectBegin()
-// 	// mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric1", "gauge", 23, 11, nil) //.WillReturnResult(sqlmock.NewResult(1, 1))
-// 	// mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric2", "counter", nil, 11)   //.WillReturnResult(sqlmock.NewResult(1, 1))
+// 	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric1", "gauge", 231.12, nil) //.WillReturnResult(sqlmock.NewResult(1, 1))
+// 	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric2", "counter", nil, 101)  //.WillReturnResult(sqlmock.NewResult(1, 1))
 // 	mock.ExpectCommit()
 // 	mock.ExpectClose()
 
@@ -134,20 +137,20 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 // 		Sync:       false,
 // 		context:    ctx,
 // 	}
+
 // 	ms := memstorage.MemStorage{
-// 		Gauges:   map[string]float64{},
-// 		Counters: map[string]int64{},
-// 		Mux:      &sync.RWMutex{},
+// 		Gauges: map[string]float64{
+// 			"metric1": 231.12},
+// 		Counters: map[string]int64{
+// 			"metric2": 101,
+// 		},
+// 		Mux: &sync.RWMutex{},
 // 	}
-// 	if _, err := ms.SetGauge("metric1", "23.11"); err != nil {
-// 		t.Errorf("memstorage add gauge error = %v", err)
-// 	}
-// 	if _, err := ms.IncCounter("metric2", "11"); err != nil {
-// 		t.Errorf("memstorage add counter error = %v", err)
-// 	}
+// 	ms.Mux.Lock()
 // 	if errSave := pgs.Save(&ms); errSave != nil {
 // 		t.Errorf("Save memstorage error = %v", err)
 // 	}
+// 	ms.Mux.Unlock()
 // 	// we make sure that all expectations were met
 // 	if err := mock.ExpectationsWereMet(); err != nil {
 // 		t.Errorf("there were unfulfilled expectations: %s", err)

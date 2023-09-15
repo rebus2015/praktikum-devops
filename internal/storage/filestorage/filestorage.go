@@ -1,3 +1,4 @@
+// Package filestorage реализует механизм хранения метрик в текстовом файле
 package filestorage
 
 import (

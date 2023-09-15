@@ -1,5 +1,5 @@
-// Пакет handlers создает экземпляр роутера и описывает все доступные эндпоинты
-// Содержит реализацию необходимого middleware.
+// Package handlers создает экземпляр роутера и описывает все доступные эндпоинты
+// содержит реализацию необходимого middleware.
 package handlers
 
 import (
@@ -496,7 +496,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 	}
 }
 
-// MiddlewareGeneratorMultipleJSON промежуточная функция обработки vfccbdf метрик в формате JSON.
+// GetMetricHandlerFunc - функция обработки метрик в URL.
 func GetMetricHandlerFunc(
 	metricStorage storage.Repository,
 ) func(w http.ResponseWriter, r *http.Request) {
