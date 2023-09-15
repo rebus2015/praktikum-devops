@@ -11,11 +11,11 @@ const (
  UNIQUE (name,type)
         );
 
-CREATE OR REPLACE FUNCTION save(TEXT, VARCHAR(10),DOUBLE PRECISION, bigint)
+CREATE OR REPLACE FUNCTION save(_name TEXT,_type VARCHAR(10),_value DOUBLE PRECISION,_delta bigint)
  RETURNS void AS '
 BEGIN
  INSERT INTO metrics (name,type,value,delta)
- VALUES ($1,$2,$3,$4)
+ VALUES (_name,_type,_value,_delta)
  ON CONFLICT(name,type) DO UPDATE
  SET value = EXCLUDED.value, delta = EXCLUDED.delta;
 END;
@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION get()
             delta bigint) AS $$
     SELECT name,type,value,delta FROM metrics
 $$ LANGUAGE SQL STABLE;`
-	SetMetricQuery  string = "SELECT * FROM save(@name,@type,@value,@delta)"
+	SetMetricQuery  string = "SELECT save(@name,@type,@value,@delta)"
 	GetMetricsQuery string = "SELECT * FROM get()"
 )
 

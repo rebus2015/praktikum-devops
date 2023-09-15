@@ -1,6 +1,8 @@
 package filestorage
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -8,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -61,6 +62,77 @@ func TestFileStorage_Restore(t *testing.T) {
 				return
 			}
 			assert.True(t, reflect.DeepEqual(got, tt.want))
+		})
+	}
+}
+
+func Test_producer_Close(t *testing.T) {
+	type fields struct {
+		file    *os.File
+		encoder *json.Encoder
+	}
+	f, _ := os.Create("1.test")
+	defer os.Remove("1.test")
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "test1",
+			fields: fields{
+				file:    f,
+				encoder: json.NewEncoder(f),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &producer{
+				file:    tt.fields.file,
+				encoder: tt.fields.encoder,
+			}
+			if err := p.Close(); (err != nil) != tt.wantErr {
+				t.Errorf("producer.Close() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+		})
+	}
+}
+
+func Test_newReader(t *testing.T) {
+	type args struct {
+		filename string
+	}
+
+	f, _ := os.Create("1.test")
+	tests := []struct {
+		name    string
+		args    args
+		want    *consumer
+		wantErr bool
+	}{
+		{
+			name: "test1",
+			args: args{"1.test"},
+			want: &consumer{
+				file:    f,
+				scanner: bufio.NewScanner(f),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newReader(tt.args.filename)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("newReader() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !assert.True(t, reflect.DeepEqual(got.file.Name(), tt.want.file.Name())) {
+				t.Errorf("newReader() = %v, want %v.", got, tt.want)
+			}
 		})
 	}
 }
