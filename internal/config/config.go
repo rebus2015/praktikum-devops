@@ -33,6 +33,5 @@ func GetConfig() (*Config, error) {
 	flag.Parse()
 
 	err := env.Parse(&conf)
-
 	return &conf, err
 }
