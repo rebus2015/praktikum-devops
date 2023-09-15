@@ -33,11 +33,17 @@ func (pgs *PostgreSQLStorage) SyncMode() bool {
 }
 
 func NewStorage(ctx context.Context, connectionString string, sync bool) (*PostgreSQLStorage, error) {
-	db, err := restoreDB(ctx, connectionString)
+	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
-		return nil, err
+		log.Printf("Unable to open connection to database connection:'%v'  error %s", connectionString, err)
+		return nil, fmt.Errorf("unable to connect to database because %w", err)
 	}
-	return &PostgreSQLStorage{connection: db, context: ctx, Sync: sync}, nil
+	pgs := &PostgreSQLStorage{connection: db, context: ctx, Sync: sync}
+	err1 := pgs.restoreDB(ctx)
+	if err1 != nil {
+		return nil, err1
+	}
+	return pgs, nil
 }
 
 func (pgs *PostgreSQLStorage) Close() {
@@ -64,12 +70,14 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
 		return err
 	}
-	defer func() {
-		rberr := tx.Rollback()
-		if rberr != nil {
-			log.Printf("failed to rollback transaction err: %v", rberr)
-		}
-	}()
+
+	// defer func() {
+
+	// 	rberr := tx.Rollback()
+	// 	if rberr != nil {
+	// 		log.Printf("failed to rollback transaction err: %v", rberr)
+	// 	}
+	// }()
 
 	for metric, val := range ms.Gauges {
 		args := pgx.NamedArgs{
@@ -79,8 +87,8 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"delta": sql.NullInt64{Valid: true},
 		}
 		if _, errg := tx.ExecContext(ctx, SetMetricQuery, args); errg != nil {
-			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
-			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
+			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errg)
+			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errg)
 		}
 	}
 
@@ -92,8 +100,8 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"delta": val,
 		}
 		if _, errc := tx.ExecContext(ctx, SetMetricQuery, args); errc != nil {
-			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, err)
-			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, err)
+			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errc)
+			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errc)
 		}
 	}
 	// шаг 4 — сохраняем изменения
@@ -157,22 +165,15 @@ func (pgs *PostgreSQLStorage) SaveTicker(storeint time.Duration, ms *memstorage.
 	}
 }
 
-func restoreDB(ctx context.Context, connectionString string) (*sql.DB, error) {
-	db, err := sql.Open("pgx", connectionString)
-	if err != nil {
-		log.Printf("Unable to open connection to database connection:'%v'  error %s", connectionString, err)
-		return nil, fmt.Errorf("unable to connect to database because %w", err)
-	}
-
-	if err = db.PingContext(ctx); err != nil {
+func (pgs *PostgreSQLStorage) restoreDB(ctx context.Context) error {
+	if err := pgs.Ping(ctx); err != nil {
 		log.Printf("Cannot ping database because %s", err)
-		return nil, fmt.Errorf("cannot ping database because %w", err)
+		return fmt.Errorf("cannot ping database because %w", err)
 	}
 
-	_, err = db.ExecContext(ctx, restoreDBscript)
-	if err != nil {
+	if _, err := pgs.connection.ExecContext(ctx, restoreDBscript); err != nil {
 		log.Printf("Fail to invoke %s: %v", restoreDBscript, err)
-		return nil, fmt.Errorf("fail to invoke %s: %w", restoreDBscript, err)
+		return fmt.Errorf("fail to invoke %s: %w", restoreDBscript, err)
 	}
-	return db, nil
+	return nil
 }
