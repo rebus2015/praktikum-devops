@@ -38,6 +38,8 @@ func NewStorage(ctx context.Context, connectionString string, sync bool) (*Postg
 		log.Printf("Unable to open connection to database connection:'%v'  error %s", connectionString, err)
 		return nil, fmt.Errorf("unable to connect to database because %w", err)
 	}
+	db.SetConnMaxIdleTime(time.Minute * 5)
+	db.SetMaxOpenConns(1000)
 	pgs := &PostgreSQLStorage{connection: db, context: ctx, Sync: sync}
 	err1 := pgs.restoreDB(ctx)
 	if err1 != nil {
@@ -62,17 +64,13 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 }
 
 func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	ctx, cancel := context.WithCancel(pgs.context)
-	defer cancel()
-
-	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
+	tx, err := pgs.connection.BeginTx(pgs.context, &sql.TxOptions{ReadOnly: false})
 	if err != nil {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
 		return err
 	}
 
 	defer func() {
-
 		rberr := tx.Rollback()
 		if rberr != nil {
 			log.Printf("failed to rollback transaction err: %v", rberr)
@@ -86,7 +84,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"value": val,
 			"delta": sql.NullInt64{Valid: true},
 		}
-		if _, errg := tx.ExecContext(ctx, SetMetricQuery, args); errg != nil {
+		if _, errg := tx.ExecContext(pgs.context, SetMetricQuery, args); errg != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errg)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errg)
 		}
@@ -99,7 +97,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"value": sql.NullFloat64{Valid: true},
 			"delta": val,
 		}
-		if _, errc := tx.ExecContext(ctx, SetMetricQuery, args); errc != nil {
+		if _, errc := tx.ExecContext(pgs.context, SetMetricQuery, args); errc != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errc)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errc)
 		}
