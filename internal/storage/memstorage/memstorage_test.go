@@ -461,6 +461,95 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 			},
 			false,
 			false,
+		}, {
+			"Negative test 1 unknown type",
+			fields{
+				map[string]float64{"g1": -32.00023},
+				map[string]int64{"c1": 100},
+				&sync.RWMutex{},
+			},
+			args{
+				[]*model.Metrics{
+					{
+						ID:    "mm2",
+						MType: "gauge",
+						Delta: nil,
+						Value: ptr(float64(-0.122)),
+						Hash:  "",
+					},
+					{
+						ID:    "SomeMetric",
+						MType: "unknown",
+						Delta: ptr(int64(25)),
+						Value: nil,
+						Hash:  "",
+					},
+				},
+			},
+			false,
+			true,
+		}, {
+			"Negative test 2  metrics type mismatch",
+			fields{
+				map[string]float64{"g1": -32.00023},
+				map[string]int64{"c1": 100},
+				&sync.RWMutex{},
+			},
+			args{
+				[]*model.Metrics{
+					{
+						ID:    "mm2",
+						MType: "counter",
+						Delta: nil,
+						Value: ptr(float64(-0.122)),
+						Hash:  "",
+					},
+				},
+			},
+			false,
+			true,
+		},
+		{
+			"Negative test 2  nil",
+			fields{
+				map[string]float64{"g1": -32.00023},
+				map[string]int64{"c1": 100},
+				&sync.RWMutex{},
+			},
+			args{
+				[]*model.Metrics{
+					{
+						ID:    "mm2",
+						MType: "gauge",
+						Delta: nil,
+						Value: nil,
+						Hash:  "",
+					},
+				},
+			},
+			false,
+			true,
+		},
+		{
+			"Negative test 2  nil",
+			fields{
+				map[string]float64{"g1": -32.00023},
+				map[string]int64{"c1": 100},
+				&sync.RWMutex{},
+			},
+			args{
+				[]*model.Metrics{
+					{
+						ID:    "mm2",
+						MType: "counter",
+						Delta: nil,
+						Value: nil,
+						Hash:  "",
+					},
+				},
+			},
+			false,
+			true,
 		},
 	}
 	for _, tt := range tests {
@@ -470,9 +559,15 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 				Counters: tt.fields.Counters,
 				Mux:      tt.fields.Mux,
 			}
-			if err := m.AddMetrics(tt.args.metrics); (err != nil) != tt.wantErr {
-				t.Errorf("MemStorage.AddMetrics() error = %v, wantErr %v", err, tt.wantErr)
+			funcErr := m.AddMetrics(tt.args.metrics)
+			if (funcErr != nil) != tt.wantErr {
+				t.Errorf("MemStorage.AddMetrics() error = %v, wantErr %v", funcErr, tt.wantErr)
 			}
+			if tt.wantErr {
+				assert.ErrorContains(t, funcErr, "[updateJSONMetricHandlerFunc] ")
+				return
+			}
+
 			for _, metric := range tt.args.metrics {
 				switch metric.MType {
 				case "gauge":
@@ -484,6 +579,7 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 					assert.True(t, err == nil)
 					assert.Equal(t, val, *metric.Delta)
 				}
+
 			}
 		})
 	}
