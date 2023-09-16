@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,9 +13,9 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
+	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -346,6 +347,84 @@ func Test_checkMetric(t *testing.T) {
 				return
 			}
 			assert.Equal(t, got, tt.want)
+		})
+	}
+}
+
+type sqlStorageMock struct {
+	isOpened bool
+}
+
+func (s *sqlStorageMock) Ping(ctx context.Context) error {
+	if s.isOpened {
+		return nil
+	}
+
+	return fmt.Errorf("Erroe: sqlStorageMock connection state is closed.")
+
+}
+func (s *sqlStorageMock) Close() {
+	s.isOpened = false
+}
+
+func TestGetDBConnState(t *testing.T) {
+	type args struct {
+		sqlStorage dbstorage.SQLStorage
+		path       string
+		method     string
+	}
+
+	type result struct {
+		wantErr bool
+		code    int
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want result
+	}{
+		{
+			"ping test positive",
+			args{
+				sqlStorage: &sqlStorageMock{
+					isOpened: true,
+				},
+				path:   "/ping",
+				method: http.MethodGet,
+			},
+			result{
+				wantErr: false,
+				code:    200,
+			},
+		},
+		{
+			"ping test negative",
+			args{
+				sqlStorage: &sqlStorageMock{
+					isOpened: false,
+				},
+				path:   "/ping",
+				method: http.MethodGet,
+			},
+			result{
+				wantErr: false,
+				code:    500,
+			},
+		},
+	}
+	for _, tt := range tests {
+		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter(metricStorage, tt.args.sqlStorage, config.Config{})
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequest(t, ts, tt.args.method, tt.args.path)
+			// проверяем код ответа
+			assert.Equal(t, tt.want.code, statusCode)
 		})
 	}
 }
