@@ -54,7 +54,10 @@ func TestFileStorage_Restore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ef, err := os.Create(tt.fields.StoreFile)
 			if tt.fields.Content != "" {
-				ef.WriteString(tt.fields.Content)
+				if _, err := ef.WriteString(tt.fields.Content); err != nil {
+					t.Errorf("FileStorage.Restore() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
 			}
 			defer func() {
 				if _, fileErr := os.Stat(tt.fields.StoreFile); errors.Is(fileErr, os.ErrNotExist) {

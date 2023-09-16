@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -220,24 +219,6 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 	defer resp.Body.Close()
 
 	return resp.StatusCode, string(respBody)
-}
-
-func testRequestJSON(t *testing.T, ts *httptest.Server, method, path string, metric model.Metrics) (int, []byte) {
-	data, err := json.Marshal(metric)
-	if err != nil {
-		log.Panic(err)
-	}
-	req, err := http.NewRequest(method, ts.URL+path, bytes.NewBuffer(data))
-	assert.NoError(t, err)
-	req.Header.Add("content-type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	assert.NoError(t, err)
-
-	respBody, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-	defer resp.Body.Close()
-	return resp.StatusCode, respBody
 }
 
 func ptr[T any](v T) *T {
