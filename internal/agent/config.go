@@ -22,7 +22,7 @@ func GetConfig() (*Config, error) {
 	flag.DurationVar(&conf.ReportInterval, "r", time.Second*11, "Interval before push metrics to server")
 	flag.DurationVar(&conf.PollInterval, "p", time.Second*5, "Interval between metrics reads from runtime")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
-	flag.IntVar(&conf.RateLimit, "l", 12, "Workers count")
+	flag.IntVar(&conf.RateLimit, "l", 5, "Workers count")
 	flag.Parse()
 	err := env.Parse(&conf)
 
