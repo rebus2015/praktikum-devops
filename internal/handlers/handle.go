@@ -210,7 +210,7 @@ func UpdateJSONMetricHandlerFunc(
 			{
 				if metric.Delta == nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Counter not found status- 400")
-					http.Error(w, "Counter not found", http.StatusBadRequest)
+					http.Error(w, "error: counter not found", http.StatusBadRequest)
 					return
 				}
 
@@ -219,7 +219,7 @@ func UpdateJSONMetricHandlerFunc(
 					log.Printf("Error: [updateJSONMetricHandlerFunc] Update counter error: %v", err)
 					http.Error(
 						w,
-						fmt.Sprintf("Update counter error: %v", err),
+						fmt.Sprintf("error: update counter failed: %v", err),
 						http.StatusInternalServerError,
 					)
 					return
@@ -230,7 +230,7 @@ func UpdateJSONMetricHandlerFunc(
 			{
 				if metric.Value == nil {
 					log.Printf("Error: [updateJSONMetricHandlerFunc] gauge not found status- 400")
-					http.Error(w, "gauge not found", http.StatusBadRequest)
+					http.Error(w, "error: gauge not found", http.StatusBadRequest)
 					return
 				}
 

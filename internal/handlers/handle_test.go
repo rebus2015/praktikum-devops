@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
@@ -19,13 +20,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-type testSQLdbStorage struct{}
-
-func (db *testSQLdbStorage) Ping(ctx context.Context) error {
-	return nil
-}
-func (db *testSQLdbStorage) Close() {}
 
 func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	type want struct {
@@ -69,7 +63,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	cfg := config.Config{StoreFile: "", ConnectionString: ""}
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
 		memstorage.NewStorage(), filestorage.NewStorage(&cfg))
-	dbStorage := &testSQLdbStorage{}
+	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,7 +120,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
 		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
-	dbStorage := &testSQLdbStorage{}
+	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -141,14 +135,19 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	}
 }
 
-func Test_getAllHandler(t *testing.T) {
+func TestGetMetricHandlerFunc(t *testing.T) {
+	type args struct {
+		mtype string
+		name  string
+		val   string
+	}
 	tests := []struct {
 		name     string
 		counters []memstorage.MetricStr
 		gauges   []memstorage.MetricStr
 		method   string
 		wantcode int
-		path     string
+		want     args
 	}{
 		{
 			name:     "Positive test #1",
@@ -156,14 +155,30 @@ func Test_getAllHandler(t *testing.T) {
 			gauges:   []memstorage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
 			method:   http.MethodGet,
 			wantcode: http.StatusOK,
-			path:     "/",
+			want: args{
+				"counter",
+				"cnt1",
+				"123",
+			},
+		},
+		{
+			name:     "Positive test #1",
+			counters: []memstorage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
+			gauges:   []memstorage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
+			method:   http.MethodGet,
+			wantcode: http.StatusNotFound,
+			want: args{
+				"gauge",
+				"cnt1",
+				"cauge with name 'cnt1' is not found",
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
 			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
-		dbStorage := &testSQLdbStorage{}
+		dbStorage := &sqlStorageMock{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.AddCounter(c.Name, c.Val)
 			if err != nil {
@@ -174,7 +189,7 @@ func Test_getAllHandler(t *testing.T) {
 		for _, g := range tt.gauges {
 			_, err := metricStorage.AddGauge(g.Name, g.Val)
 			if err != nil {
-				log.Printf("Test_GetAllHandler error:%v", err)
+				log.Printf("TestGetMetricHandlerFunc error:%v", err)
 			}
 		}
 
@@ -183,10 +198,11 @@ func Test_getAllHandler(t *testing.T) {
 			r := NewRouter(metricStorage, dbStorage, config.Config{})
 			ts := httptest.NewServer(r)
 			defer ts.Close()
-
-			statusCode, _ := testRequest(t, ts, tt.method, tt.path)
+			p, _ := url.JoinPath("/value", tt.want.mtype, tt.want.name)
+			statusCode, val := testRequest(t, ts, tt.method, p)
 			// проверяем код ответа
 			assert.Equal(t, tt.wantcode, statusCode)
+			assert.EqualValues(t, val, tt.want.val)
 		})
 	}
 }
@@ -228,13 +244,30 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
+func testRequestJSONstring(t *testing.T, ts *httptest.Server, method, path string, metric string) (int, []byte) {
+
+	req, err := http.NewRequest(method, ts.URL+path, bytes.NewBuffer([]byte(metric)))
+	assert.NoError(t, err)
+	req.Header.Add("content-type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+
+	respBody, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	respBody = respBody[:len(respBody)-1]
+	return resp.StatusCode, respBody
+}
+
 func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	type wantArgs struct {
-		code int
-		data *model.Metrics
+		code    int
+		data    string
+		wantErr bool
 	}
 	type requestArgs struct {
-		data        *model.Metrics
+		data        string
 		path        string
 		method      string
 		contentType string
@@ -247,11 +280,12 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		{
 			name: "positive add gauge test #1",
 			want: wantArgs{
-				code: 200,
-				data: &model.Metrics{ID: "G1", MType: "gauge", Value: ptr(100.47)},
+				code:    200,
+				wantErr: false,
+				data:    "{\"id\":\"G1\",\"type\":\"gauge\",\"value\":100.47}",
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID: "G1", MType: "gauge", Value: ptr(100.47)},
+				data:        "{\"id\":\"G1\",\"type\":\"gauge\",\"value\":100.47}",
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -260,11 +294,38 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 		{
 			name: "positive add counter test #2",
 			want: wantArgs{
-				code: 200,
-				data: &model.Metrics{ID: "C1", MType: "counter", Delta: ptr(int64(147))},
+				code:    200,
+				wantErr: false,
+				data:    "{\"id\":\"C1\",\"type\":\"counter\",\"delta\":47}",
 			},
 			request: requestArgs{
-				data:        &model.Metrics{ID: "C1", MType: "counter", Delta: ptr(int64(147))},
+				data:        "{\"id\":\"C1\",\"type\":\"counter\",\"delta\":47}",
+				path:        "/update",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "negative type mismatch test #2",
+			want: wantArgs{
+				code:    400,
+				wantErr: true,
+			},
+			request: requestArgs{
+				data:        "{\"id\":\"C1\",\"type\":\"unk\",\"delta\":1.47}",
+				path:        "/update",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "negative add nil counter test #1",
+			want: wantArgs{
+				code:    400,
+				wantErr: true,
+			},
+			request: requestArgs{
+				data:        "{\"id\":\"C1\",\"type\":\"counter\"}",
 				path:        "/update",
 				method:      http.MethodPost,
 				contentType: "application/json",
@@ -274,7 +335,7 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
 		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
-	dbStorage := &testSQLdbStorage{}
+	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
 		t.Run(tt.name, func(t *testing.T) {
@@ -282,19 +343,82 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 			ts := httptest.NewServer(r)
 			defer ts.Close()
 
-			statusCode, body := testRequestJSON(t, ts, tt.request.method, tt.request.path, *tt.request.data)
+			statusCode, body := testRequestJSONstring(t, ts, tt.request.method, tt.request.path, tt.request.data)
 			// проверяем код ответа
 			assert.Equal(t, tt.want.code, statusCode)
-			var resp model.Metrics
-			err := json.Unmarshal(body, &resp)
-			assert.NoError(t, err)
-			assert.EqualValues(t, *tt.want.data, resp)
+			if tt.want.wantErr {
+				return
+			}
+			assert.EqualValues(t, body, []byte(tt.want.data))
 		})
 	}
 }
 
-func Ptr[T any](v T) *T {
-	return &v
+func Test_UpdateJSONMultipleMetricHandlerFunc(t *testing.T) {
+	type wantArgs struct {
+		code    int
+		data    string
+		wantErr bool
+	}
+	type requestArgs struct {
+		data        string
+		path        string
+		method      string
+		contentType string
+	}
+	tests := []struct {
+		name    string
+		want    wantArgs
+		request requestArgs
+	}{
+		{
+			name: "positive add gauge test #1",
+			want: wantArgs{
+				code:    200,
+				wantErr: false,
+				data:    "[{\"id\":\"G1\",\"type\":\"gauge\",\"value\":100.47},{\"id\":\"C1\",\"type\":\"counter\",\"delta\":47}]",
+			},
+			request: requestArgs{
+				data:        "[{\"id\":\"G1\",\"type\":\"gauge\",\"value\":100.47},{\"id\":\"C1\",\"type\":\"counter\",\"delta\":47}]",
+				path:        "/updates",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+		{
+			name: "negative type mismatch test #2",
+			want: wantArgs{
+				code:    400,
+				wantErr: true,
+			},
+			request: requestArgs{
+				data:        "[{\"id\":\"G1\",\"type\":\"gauge\",\"value\":100.47},{\"id\":\"C1\",\"type\":\"unk\",\"delta\":1.47}]",
+				path:        "/updates",
+				method:      http.MethodPost,
+				contentType: "application/json",
+			},
+		},
+	}
+
+	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+	dbStorage := &sqlStorageMock{}
+	for _, tt := range tests {
+		// запускаем каждый тест
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter(metricStorage, dbStorage, config.Config{})
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, body := testRequestJSONstring(t, ts, tt.request.method, tt.request.path, tt.request.data)
+			// проверяем код ответа
+			assert.Equal(t, tt.want.code, statusCode)
+			if tt.want.wantErr {
+				return
+			}
+			assert.EqualValues(t, body, []byte(tt.want.data))
+		})
+	}
 }
 
 func Test_checkMetric(t *testing.T) {
@@ -425,6 +549,137 @@ func TestGetDBConnState(t *testing.T) {
 			statusCode, _ := testRequest(t, ts, tt.args.method, tt.args.path)
 			// проверяем код ответа
 			assert.Equal(t, tt.want.code, statusCode)
+		})
+	}
+}
+
+func Test_getAllHandler(t *testing.T) {
+	tests := []struct {
+		name     string
+		counters []memstorage.MetricStr
+		gauges   []memstorage.MetricStr
+		method   string
+		wantcode int
+		path     string
+	}{
+		{
+			name:     "Positive test #1",
+			counters: []memstorage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
+			gauges:   []memstorage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
+			method:   http.MethodGet,
+			wantcode: http.StatusOK,
+			path:     "/",
+		},
+		{
+			name:     "Positive test #1",
+			counters: []memstorage.MetricStr{{Name: "cnt1", Val: "123"}, {Name: "cnt2", Val: "64"}},
+			gauges:   []memstorage.MetricStr{{Name: "gauge1", Val: "12.003"}, {Name: "gauge2", Val: "-164"}},
+			method:   http.MethodGet,
+			wantcode: http.StatusOK,
+			path:     "/",
+		},
+	}
+
+	for _, tt := range tests {
+		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		dbStorage := &sqlStorageMock{}
+		for _, c := range tt.counters {
+			_, err := metricStorage.AddCounter(c.Name, c.Val)
+			if err != nil {
+				log.Printf("Test_GetAllHandler error:%v", err)
+			}
+		}
+
+		for _, g := range tt.gauges {
+			_, err := metricStorage.AddGauge(g.Name, g.Val)
+			if err != nil {
+				log.Printf("Test_GetAllHandler error:%v", err)
+			}
+		}
+		// запускаем каждый тест
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter(metricStorage, dbStorage, config.Config{})
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			statusCode, _ := testRequest(t, ts, tt.method, tt.path)
+			// проверяем код ответа
+			assert.Equal(t, tt.wantcode, statusCode)
+		})
+	}
+}
+
+func TestUpdateMetricHandlerFunc(t *testing.T) {
+	type args struct {
+		mtype string
+		name  string
+		val   string
+	}
+	tests := []struct {
+		name     string
+		method   string
+		wantcode int
+		path     string
+		want     args
+	}{
+		{
+			name:     "Positive test #1",
+			method:   http.MethodPost,
+			wantcode: http.StatusOK,
+			path:     "/update",
+			want: args{
+				"counter",
+				"cnt1",
+				"5055",
+			},
+		},
+		{
+			name:     "Positive test #2",
+			method:   http.MethodPost,
+			wantcode: http.StatusOK,
+			want: args{
+				"gauge",
+				"gauge1",
+				"0.0012",
+			},
+		},
+		{
+			name:     "Negative test #1 value type mismatch",
+			method:   http.MethodPost,
+			wantcode: http.StatusBadRequest,
+			want: args{
+				"counter",
+				"gauge1",
+				"0.0012",
+			},
+		},
+		{
+			name:     "Negative test #1 unk metric type",
+			method:   http.MethodPost,
+			wantcode: http.StatusNotImplemented,
+			want: args{
+				"unknown",
+				"metricXX",
+				"0.0012",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
+			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		dbStorage := &sqlStorageMock{}
+
+		// запускаем каждый тест
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter(metricStorage, dbStorage, config.Config{})
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+			p, _ := url.JoinPath("/update", tt.want.mtype, tt.want.name, tt.want.val)
+			statusCode, _ := testRequest(t, ts, tt.method, p)
+			// проверяем код ответа
+			assert.Equal(t, tt.wantcode, statusCode)
 		})
 	}
 }

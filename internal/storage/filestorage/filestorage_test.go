@@ -16,6 +16,7 @@ import (
 func TestFileStorage_Restore(t *testing.T) {
 	type fields struct {
 		StoreFile string
+		Content   string
 		Sync      bool
 	}
 	tests := []struct {
@@ -28,6 +29,7 @@ func TestFileStorage_Restore(t *testing.T) {
 			"Empty file test",
 			fields{
 				StoreFile: "emptyStorage.txt",
+				Content:   "",
 				Sync:      false,
 			},
 			&memstorage.MemStorage{
@@ -37,12 +39,25 @@ func TestFileStorage_Restore(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"Wrong format file test",
+			fields{
+				StoreFile: "badStorage.txt",
+				Content:   "Some uunstructured text",
+				Sync:      false,
+			},
+			nil,
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ef, err := os.Create(tt.fields.StoreFile)
+			if tt.fields.Content != "" {
+				ef.WriteString(tt.fields.Content)
+			}
 			defer func() {
-				if _, fileErr := os.Stat("/path/to/whatever"); errors.Is(fileErr, os.ErrNotExist) {
+				if _, fileErr := os.Stat(tt.fields.StoreFile); errors.Is(fileErr, os.ErrNotExist) {
 					return
 				}
 				ef.Close()
@@ -61,6 +76,7 @@ func TestFileStorage_Restore(t *testing.T) {
 				t.Errorf("FileStorage.Restore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			assert.True(t, reflect.DeepEqual(got, tt.want))
 		})
 	}
