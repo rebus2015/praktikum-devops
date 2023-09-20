@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
@@ -25,7 +27,7 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 	retval, err := rw.memstorage.SetGauge(name, val)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(rw.memstorage)
+			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}
@@ -38,7 +40,7 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 	retval, err := rw.memstorage.IncCounter(name, val)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(rw.memstorage)
+			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}
@@ -63,7 +65,7 @@ func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
 	err := rw.memstorage.AddMetrics(m)
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
-			errs := rw.secondarystorage.Save(rw.memstorage)
+			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
 				log.Printf("FileStorage Save error: %v", err)
 			}

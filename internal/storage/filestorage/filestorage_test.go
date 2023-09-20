@@ -1,9 +1,9 @@
 package filestorage
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
-	"errors"
+	"log"
 	"os"
 	"reflect"
 	"sync"
@@ -52,29 +52,31 @@ func TestFileStorage_Restore(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ef, err := os.Create(tt.fields.StoreFile)
+			dir := testing.TB.TempDir(t)
+			f, err := os.CreateTemp(dir, tt.fields.StoreFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer func() {
+				os.Remove(f.Name())
+				f.Close()
+			}()
+
 			if tt.fields.Content != "" {
-				if _, err := ef.WriteString(tt.fields.Content); err != nil {
+				if _, err := f.WriteString(tt.fields.Content); err != nil {
 					t.Errorf("FileStorage.Restore() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 			}
-			defer func() {
-				if _, fileErr := os.Stat(tt.fields.StoreFile); errors.Is(fileErr, os.ErrNotExist) {
-					return
-				}
-				ef.Close()
-				os.Remove(tt.fields.StoreFile)
-			}()
 			if err != nil {
 				t.Errorf("FileStorage.Restore() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			f := &FileStorage{
-				StoreFile: tt.fields.StoreFile,
+			fs := &FileStorage{
+				StoreFile: f.Name(),
 				Sync:      tt.fields.Sync,
 			}
-			got, err := f.Restore()
+			got, err := fs.Restore(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FileStorage.Restore() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -90,8 +92,12 @@ func Test_producer_Close(t *testing.T) {
 		file    *os.File
 		encoder *json.Encoder
 	}
-	f, _ := os.Create("1.test")
-	defer os.Remove("1.test")
+	dir := testing.TB.TempDir(t)
+	f, err := os.CreateTemp(dir, "1.test")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(f.Name())
 	tests := []struct {
 		name    string
 		fields  fields
@@ -125,7 +131,6 @@ func Test_newReader(t *testing.T) {
 		filename string
 	}
 
-	f, _ := os.Create("1.test")
 	tests := []struct {
 		name    string
 		args    args
@@ -133,24 +138,29 @@ func Test_newReader(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "test1",
-			args: args{"1.test"},
-			want: &consumer{
-				file:    f,
-				scanner: bufio.NewScanner(f),
-			},
+			name:    "test 1",
+			args:    args{"1.test"},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := newReader(tt.args.filename)
+			dir := testing.TB.TempDir(t)
+			f, err := os.CreateTemp(dir, tt.args.filename)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer func() {
+				os.Remove(f.Name())
+				f.Close()
+			}()
+			got, err := newReader(f.Name())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newReader() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !assert.True(t, reflect.DeepEqual(got.file.Name(), tt.want.file.Name())) {
-				t.Errorf("newReader() = %v, want %v.", got, tt.want)
+			if !assert.True(t, reflect.DeepEqual(got.file.Name(), f.Name())) {
+				t.Errorf("newReader() = %v, want %v.", got.file.Name(), f.Name())
 			}
 		})
 	}

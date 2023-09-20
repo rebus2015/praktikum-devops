@@ -3,6 +3,7 @@ package filestorage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -23,7 +24,7 @@ type FileStorage struct {
 
 var _ storage.SecondaryStorage = new(FileStorage)
 
-func NewStorage(c *config.Config) *FileStorage {
+func NewStorage(ctx context.Context, c *config.Config) *FileStorage {
 	return &FileStorage{
 		c.StoreFile,
 		c.StoreInterval == 0,
@@ -34,7 +35,7 @@ func (f *FileStorage) SyncMode() bool {
 	return f.Sync
 }
 
-func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
+func (f *FileStorage) Save(ctx context.Context, ms *memstorage.MemStorage) error {
 	writer, err := newWriter(f.StoreFile)
 	if err != nil {
 		log.Printf("error FileStorage save metrics to file '%s' error: %v", f.StoreFile, err)
@@ -49,7 +50,7 @@ func (f *FileStorage) Save(ms *memstorage.MemStorage) error {
 	return nil
 }
 
-func (f *FileStorage) Restore() (*memstorage.MemStorage, error) {
+func (f *FileStorage) Restore(ctx context.Context) (*memstorage.MemStorage, error) {
 	reader, err := newReader(f.StoreFile)
 	if err != nil {
 		log.Printf("Restore metrics from file '%s' reader error: %v", f.StoreFile, err)
@@ -78,7 +79,7 @@ func (f *FileStorage) Restore() (*memstorage.MemStorage, error) {
 func (f *FileStorage) SaveTicker(storeint time.Duration, ms *memstorage.MemStorage) {
 	ticker := time.NewTicker(storeint)
 	for range ticker.C {
-		errs := f.Save(ms)
+		errs := f.Save(context.Background(), ms)
 		if errs != nil {
 			log.Printf("FileStorage Save error: %v", errs)
 		}
