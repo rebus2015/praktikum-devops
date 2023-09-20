@@ -50,14 +50,14 @@ func main() {
 		defer sqlDBStorage.Close()
 	default:
 		if cfg.StoreFile != "" {
-			fs = filestorage.NewStorage(cfg)
+			fs = filestorage.NewStorage(ctx, cfg)
 		}
 	}
 
 	ms := memstorage.NewStorage()
 	if fs != nil {
 		if cfg.Restore {
-			ms, err = fs.Restore()
+			ms, err = fs.Restore(ctx)
 			if err != nil {
 				log.Panicf("Error restoring data %v", err)
 			}

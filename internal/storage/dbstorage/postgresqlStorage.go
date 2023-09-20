@@ -20,7 +20,6 @@ var _ storage.SecondaryStorage = new(PostgreSQLStorage)
 type PostgreSQLStorage struct {
 	connection *sql.DB
 	Sync       bool
-	context    context.Context
 }
 
 type SQLStorage interface {
@@ -39,8 +38,8 @@ func NewStorage(ctx context.Context, connectionString string, sync bool) (*Postg
 		return nil, fmt.Errorf("unable to connect to database because %w", err)
 	}
 	db.SetConnMaxIdleTime(time.Minute * 5)
-	db.SetMaxOpenConns(1000)
-	pgs := &PostgreSQLStorage{connection: db, context: ctx, Sync: sync}
+	db.SetMaxOpenConns(50)
+	pgs := &PostgreSQLStorage{connection: db, Sync: sync}
 	err1 := pgs.restoreDB(ctx)
 	if err1 != nil {
 		return nil, err1
@@ -63,8 +62,8 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
-	tx, err := pgs.connection.BeginTx(pgs.context, &sql.TxOptions{ReadOnly: false})
+func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorage) error {
+	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
 	if err != nil {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
 		return err
@@ -84,7 +83,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"value": val,
 			"delta": sql.NullInt64{Valid: true},
 		}
-		if _, errg := tx.ExecContext(pgs.context, SetMetricQuery, args); errg != nil {
+		if _, errg := tx.ExecContext(ctx, SetMetricQuery, args); errg != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errg)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errg)
 		}
@@ -97,7 +96,7 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 			"value": sql.NullFloat64{Valid: true},
 			"delta": val,
 		}
-		if _, errc := tx.ExecContext(pgs.context, SetMetricQuery, args); errc != nil {
+		if _, errc := tx.ExecContext(ctx, SetMetricQuery, args); errc != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errc)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errc)
 		}
@@ -112,8 +111,8 @@ func (pgs *PostgreSQLStorage) Save(ms *memstorage.MemStorage) error {
 	return nil
 }
 
-func (pgs *PostgreSQLStorage) Restore() (*memstorage.MemStorage, error) {
-	ctx, cancel := context.WithTimeout(pgs.context, time.Second*25)
+func (pgs *PostgreSQLStorage) Restore(ctx context.Context) (*memstorage.MemStorage, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*25)
 	defer cancel()
 	counters := make(map[string]int64)
 	gauges := make(map[string]float64)
@@ -156,7 +155,8 @@ func (pgs *PostgreSQLStorage) Restore() (*memstorage.MemStorage, error) {
 func (pgs *PostgreSQLStorage) SaveTicker(storeint time.Duration, ms *memstorage.MemStorage) {
 	ticker := time.NewTicker(storeint)
 	for range ticker.C {
-		errs := pgs.Save(ms)
+		ctx := context.Background()
+		errs := pgs.Save(ctx, ms)
 		if errs != nil {
 			log.Printf("PostgreSQLStorage SaveTicker error: %v", errs)
 		}

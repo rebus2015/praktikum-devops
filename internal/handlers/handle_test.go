@@ -61,7 +61,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	}
 	cfg := config.Config{StoreFile: "", ConnectionString: ""}
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(&cfg))
+		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &cfg))
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -118,7 +118,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	}
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -176,7 +176,7 @@ func TestGetMetricHandlerFunc(t *testing.T) {
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 		dbStorage := &sqlStorageMock{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.AddCounter(c.Name, c.Val)
@@ -315,7 +315,7 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	}
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -382,7 +382,7 @@ func Test_UpdateJSONMultipleMetricHandlerFunc(t *testing.T) {
 	}
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -520,7 +520,7 @@ func TestGetDBConnState(t *testing.T) {
 	}
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 
 		t.Run(tt.name, func(t *testing.T) {
 			r := NewRouter(metricStorage, tt.args.sqlStorage, config.Config{})
@@ -563,7 +563,7 @@ func Test_getAllHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 		dbStorage := &sqlStorageMock{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.AddCounter(c.Name, c.Val)
@@ -649,7 +649,7 @@ func TestUpdateMetricHandlerFunc(t *testing.T) {
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(&config.Config{}))
+			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
 		dbStorage := &sqlStorageMock{}
 
 		// запускаем каждый тест

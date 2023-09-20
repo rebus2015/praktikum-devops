@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
@@ -17,8 +18,8 @@ type Repository interface {
 }
 
 type SecondaryStorage interface {
-	Save(ms *memstorage.MemStorage) error
-	Restore() (*memstorage.MemStorage, error)
+	Save(ctx context.Context, ms *memstorage.MemStorage) error
+	Restore(ctx context.Context) (*memstorage.MemStorage, error)
 	SaveTicker(storeint time.Duration, ms *memstorage.MemStorage)
 	SyncMode() bool
 }
