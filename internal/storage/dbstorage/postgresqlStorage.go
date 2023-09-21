@@ -62,7 +62,7 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorage) error {
+func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorage) (err error) {
 	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
 	if err != nil {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
@@ -70,9 +70,11 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 	}
 
 	defer func() {
-		rberr := tx.Rollback()
-		if rberr != nil {
-			log.Printf("failed to rollback transaction err: %v", rberr)
+		if err != nil {
+			rberr := tx.Rollback()
+			if rberr != nil {
+				log.Printf("failed to rollback transaction err: %v", rberr)
+			}
 		}
 	}()
 
