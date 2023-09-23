@@ -6,9 +6,11 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
-
 	"testing"
 	"time"
+
+	// 	"testing"
+	// 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v3"
@@ -79,12 +81,6 @@ func TestPostgreSQLStorage_Restore(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 	defer cancel()
-
-	mockDB := mock.NewRows([]string{"name", "type", "value", "delta"}).
-		AddRow("metric1", "gauge", "231.12", nil).
-		AddRow("metric2", "counter", nil, "101")
-
-	mock.ExpectQuery(regexp.QuoteMeta(GetMetricsQuery)).WillReturnRows(mockDB)
 
 	pgs := &PostgreSQLStorage{
 		connection: mock,
