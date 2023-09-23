@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl\
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage"
@@ -18,7 +20,7 @@ import (
 var _ storage.SecondaryStorage = new(PostgreSQLStorage)
 
 type PostgreSQLStorage struct {
-	connection *sql.DB
+	connection *pgxpool.Pool
 	Sync       bool
 }
 
@@ -32,13 +34,11 @@ func (pgs *PostgreSQLStorage) SyncMode() bool {
 }
 
 func NewStorage(ctx context.Context, connectionString string, sync bool) (*PostgreSQLStorage, error) {
-	db, err := sql.Open("pgx", connectionString)
+	db, err := pgxpool.New(ctx, connectionString)
 	if err != nil {
 		log.Printf("Unable to open connection to database connection:'%v'  error %s", connectionString, err)
 		return nil, fmt.Errorf("unable to connect to database because %w", err)
 	}
-	db.SetConnMaxIdleTime(time.Minute * 5)
-	db.SetMaxOpenConns(50)
 	pgs := &PostgreSQLStorage{connection: db, Sync: sync}
 	err1 := pgs.restoreDB(ctx)
 	if err1 != nil {
@@ -55,7 +55,7 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 	if pgs == nil {
 		return fmt.Errorf("cannot ping database because connection is nil")
 	}
-	if err := pgs.connection.PingContext(ctx); err != nil {
+	if err := pgs.connection.Ping(ctx); err != nil {
 		log.Printf("Cannot ping database because %s", err)
 		return fmt.Errorf("cannot ping database because %w", err)
 	}
@@ -63,7 +63,7 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 }
 
 func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorage) (err error) {
-	tx, err := pgs.connection.BeginTx(ctx, &sql.TxOptions{ReadOnly: false})
+	tx, err := pgs.connection.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
 		return err
@@ -71,10 +71,7 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 
 	defer func() {
 		if err != nil {
-			rberr := tx.Rollback()
-			if rberr != nil {
-				log.Printf("failed to rollback transaction err: %v", rberr)
-			}
+			tx.Rollback(ctx)
 		}
 	}()
 
@@ -85,7 +82,7 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 			"value": val,
 			"delta": sql.NullInt64{Valid: true},
 		}
-		if _, errg := tx.ExecContext(ctx, SetMetricQuery, args); errg != nil {
+		if _, errg := tx.Exec(ctx, SetMetricQuery, args); errg != nil {
 			log.Printf("Error update gauge:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errg)
 			return fmt.Errorf("error update gauge:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errg)
 		}
@@ -98,18 +95,16 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 			"value": sql.NullFloat64{Valid: true},
 			"delta": val,
 		}
-		if _, errc := tx.ExecContext(ctx, SetMetricQuery, args); errc != nil {
+		if _, errc := tx.Exec(ctx, SetMetricQuery, args); errc != nil {
 			log.Printf("Error update counter:[%v:%v] query '%s' error: %v", metric, val, SetMetricQuery, errc)
 			return fmt.Errorf("error update counter:[%v:%v] query '%s' error: %w", metric, val, SetMetricQuery, errc)
 		}
 	}
-	// шаг 4 — сохраняем изменения
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	if err != nil {
 		log.Printf("Error failed to Commit transaction %v", err)
 		return fmt.Errorf("failed to Commit transaction %w", err)
 	}
-
 	return nil
 }
 
@@ -118,7 +113,7 @@ func (pgs *PostgreSQLStorage) Restore(ctx context.Context) (*memstorage.MemStora
 	defer cancel()
 	counters := make(map[string]int64)
 	gauges := make(map[string]float64)
-	rows, err := pgs.connection.QueryContext(ctx, GetMetricsQuery)
+	rows, err := pgs.connection.Query(ctx, GetMetricsQuery)
 	if err != nil {
 		log.Printf("Error trying to get all metircs, query: '%s' error: %v", SetMetricQuery, err)
 		return nil, fmt.Errorf("error trying to get all metircs, query: '%s' error: %w", SetMetricQuery, err)
@@ -171,7 +166,7 @@ func (pgs *PostgreSQLStorage) restoreDB(ctx context.Context) error {
 		return fmt.Errorf("cannot ping database because %w", err)
 	}
 
-	if _, err := pgs.connection.ExecContext(ctx, restoreDBscript); err != nil {
+	if _, err := pgs.connection.Exec(ctx, restoreDBscript); err != nil {
 		log.Printf("Fail to invoke %s: %v", restoreDBscript, err)
 		return fmt.Errorf("fail to invoke %s: %w", restoreDBscript, err)
 	}
