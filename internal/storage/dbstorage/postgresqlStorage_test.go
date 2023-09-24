@@ -1,182 +1,202 @@
 package dbstorage
 
-// import (
-// 	"context"
-// 	"reflect"
-// 	"regexp"
+import (
+	"context"
+	"database/sql"
+	"reflect"
+	"regexp"
+	"sync"
 
-// 	"testing"
-// 	"time"
+	// 	"reflect"
+	// 	"regexp"
 
-// 	"github.com/DATA-DOG/go-sqlmock"
-// 	_ "github.com/jackc/pgx/v5/stdlib"
-// 	"github.com/pashagolub/pgxmock/v3"
+	"testing"
+	"time"
 
-// 	"github.com/stretchr/testify/assert"
-// )
+	// 	"github.com/DATA-DOG/go-sqlmock"
+	// 	_ "github.com/jackc/pgx/v5/stdlib"
 
-// func TestPostgreSQLStorage_Ping(t *testing.T) {
-// 	mock, err := pgxmock.NewPool()//sqlmock.New(sqlmock.MonitorPingsOption(true))
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
-// 	defer mock.Close()
+	"github.com/jackc/pgx/v5"
+	"github.com/pashagolub/pgxmock/v3"
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+	"github.com/stretchr/testify/assert"
+	// 	"github.com/stretchr/testify/assert"
+)
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-// 	defer cancel()
-// 	mock.ExpectPing().WillDelayFor(time.Second * 3)
-// 	pgs := &PostgreSQLStorage{
-// 		connection: mock,
-// 		Sync:       false,
-// 	}
-// 	if err := pgs.Ping(ctx); err != nil {
-// 		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
-// 	}
-// 	// we make sure that all expectations were met
-// 	if err := mock.ExpectationsWereMet(); err != nil {
-// 		t.Errorf("there were unfulfilled expectations: %s", err)
-// 	}
+func TestPostgreSQLStorage_Ping(t *testing.T) {
+	mock, err := pgxmock.NewPool() //sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mock.Close()
 
-// }
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	mock.ExpectPing().WillDelayFor(time.Second * 3)
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
+	if err := pgs.Ping(ctx); err != nil {
+		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
+	}
+	// we make sure that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 
-// func Test_restoreDB(t *testing.T) {
+}
 
-// 	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
-// 	defer db.Close()
+func Test_restoreDB(t *testing.T) {
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
-// 	defer cancel()
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mock.Close()
 
-// 	mock.ExpectPing().WillDelayFor(time.Second * 3)
-// 	mock.ExpectExec(regexp.QuoteMeta(restoreDBscript)).WillReturnResult(sqlmock.NewResult(0, 0))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
+	defer cancel()
 
-// 	pgs := &PostgreSQLStorage{
-// 		connection: db,
-// 		Sync:       false,
-// 	}
-// 	if err := pgs.restoreDB(ctx); err != nil {
-// 		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
-// 	}
+	mock.ExpectPing().WillDelayFor(time.Second * 3)
+	mock.ExpectExec(regexp.QuoteMeta(restoreDBscript)).WillReturnResult(pgxmock.NewResult("", 0))
 
-// 	// we make sure that all expectations were met
-// 	if err := mock.ExpectationsWereMet(); err != nil {
-// 		t.Errorf("there were unfulfilled expectations: %s", err)
-// 	}
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
+	if err := pgs.restoreDB(ctx); err != nil {
+		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
+	}
 
-// }
+	// we make sure that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 
-// func TestPostgreSQLStorage_Restore(t *testing.T) {
-// 	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
-// 	defer db.Close()
+}
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
-// 	defer cancel()
+func TestPostgreSQLStorage_Restore(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mock.Close()
 
-// 	mockDB := mock.NewRows([]string{"name", "type", "value", "delta"}).
-// 		AddRow("metric1", "gauge", "231.12", nil).
-// 		AddRow("metric2", "counter", nil, "101")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
+	defer cancel()
 
-// 	mock.ExpectQuery(regexp.QuoteMeta(GetMetricsQuery)).WillReturnRows(mockDB)
+	mockDB := mock.NewRows([]string{"name", "type", "value", "delta"}).
+		AddRow("metric1", "gauge", "231.12", nil).
+		AddRow("metric2", "counter", nil, "101")
 
-// 	pgs := &PostgreSQLStorage{
-// 		connection: db,
-// 		Sync:       false,
-// 	}
+	mock.ExpectQuery(regexp.QuoteMeta(GetMetricsQuery)).WillReturnRows(mockDB)
 
-// 	gauges := map[string]float64{
-// 		"metric1": 231.12,
-// 	}
-// 	counters := map[string]int64{
-// 		"metric2": 101,
-// 	}
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
 
-// 	ms, err := pgs.Restore(ctx)
-// 	if err != nil {
-// 		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
-// 	}
-// 	// we make sure that all expectations were met
-// 	if err := mock.ExpectationsWereMet(); err != nil {
-// 		t.Errorf("there were unfulfilled expectations: %s", err)
-// 	}
+	gauges := map[string]float64{
+		"metric1": 231.12,
+	}
+	counters := map[string]int64{
+		"metric2": 101,
+	}
 
-// 	assert.True(t, reflect.DeepEqual(gauges, ms.Gauges))
-// 	assert.True(t, reflect.DeepEqual(counters, ms.Counters))
-// }
+	ms, err := pgs.Restore(ctx)
+	if err != nil {
+		t.Errorf("PostgreSQLStorage.Ping() error = %v", err)
+	}
+	// we make sure that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 
-// func TestPostgreSQLStorage_Save(t *testing.T) {
-// 	db, mock, err := sqlmock.New()
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
+	assert.True(t, reflect.DeepEqual(gauges, ms.Gauges))
+	assert.True(t, reflect.DeepEqual(counters, ms.Counters))
+}
 
-// 	ctx := context.Background()
+func TestPostgreSQLStorage_Save(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
 
-// 	defer func() {
-// 		db.Close()
-// 	}()
+	ctx := context.Background()
 
-// 	mock.ExpectBegin()
-// 	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric1", "gauge", 231.12, nil) //.WillReturnResult(sqlmock.NewResult(1, 1))
-// 	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs("metric2", "counter", nil, 101)  //.WillReturnResult(sqlmock.NewResult(1, 1))
-// 	mock.ExpectCommit()
-// 	mock.ExpectClose()
+	defer func() {
+		mock.Close()
+	}()
 
-// 	pgs := &PostgreSQLStorage{
-// 		connection: db,
-// 		Sync:       false,
-// 	}
+	mock.ExpectBegin()
+	args := pgx.NamedArgs{
+		"name":  "metric1",
+		"type":  "gauge",
+		"value": 231.12,
+		"delta": sql.NullInt64{Valid: true},
+	}
+	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs(args).WillReturnResult(pgxmock.NewResult("", 0))
+	args2 := pgx.NamedArgs{
+		"name":  "metric2",
+		"type":  "counter",
+		"value": sql.NullFloat64{Valid: true},
+		"delta": int64(101),
+	}
+	mock.ExpectExec(regexp.QuoteMeta(SetMetricQuery)).WithArgs(args2).WillReturnResult(pgxmock.NewResult("", 0))
+	mock.ExpectCommit()
 
-// 	ms := memstorage.MemStorage{
-// 		Gauges: map[string]float64{
-// 			"metric1": 231.12},
-// 		Counters: map[string]int64{
-// 			"metric2": 101,
-// 		},
-// 		Mux: &sync.RWMutex{},
-// 	}
-// 	ms.Mux.Lock()
-// 	if errSave := pgs.Save(ctx, &ms); errSave != nil {
-// 		t.Errorf("Save memstorage error = %v", err)
-// 	}
-// 	ms.Mux.Unlock()
-// 	// we make sure that all expectations were met
-// 	if err := mock.ExpectationsWereMet(); err != nil {
-// 		t.Errorf("there were unfulfilled expectations: %s", err)
-// 	}
-// }
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
 
-// func TestPostgreSQLStorage_SyncMode(t *testing.T) {
-// 	db, _, err := sqlmock.New()
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
-// 	defer db.Close()
-// 	pgs := &PostgreSQLStorage{
-// 		connection: db,
-// 		Sync:       false,
-// 	}
+	ms := memstorage.MemStorage{
+		Gauges: map[string]float64{
+			"metric1": 231.12},
+		Counters: map[string]int64{
+			"metric2": 101,
+		},
+		Mux: &sync.RWMutex{},
+	}
+	ms.Mux.Lock()
+	if errSave := pgs.Save(ctx, &ms); errSave != nil {
+		t.Errorf("Save memstorage error = %v", err)
+	}
+	ms.Mux.Unlock()
+	// we make sure that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
 
-// 	assert.Equal(t, pgs.SyncMode(), pgs.Sync)
+func TestPostgreSQLStorage_SyncMode(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mock.Close()
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
 
-// }
+	assert.Equal(t, pgs.SyncMode(), pgs.Sync)
 
-// func TestPostgreSQLStorage_Close(t *testing.T) {
-// 	db, _, err := sqlmock.New()
-// 	if err != nil {
-// 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-// 	}
-// 	defer db.Close()
+}
 
-// 	pgs := &PostgreSQLStorage{
-// 		connection: db,
-// 		Sync:       false,
-// 	}
-// 	pgs.Close()
-// 	assert.Error(t, pgs.connection.Ping())
-// }
+func TestPostgreSQLStorage_Close(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mock.Close()
+
+	pgs := &PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
+	pgs.Close()
+
+	assert.Error(t, pgs.connection.Ping(context.Background()))
+}

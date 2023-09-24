@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib" // init db driver for postgeSQl\
 
@@ -19,8 +20,19 @@ import (
 
 var _ storage.SecondaryStorage = new(PostgreSQLStorage)
 
+type PgxPoolIface interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Ping(ctx context.Context) error
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	Close()
+}
+
 type PostgreSQLStorage struct {
-	connection *pgxpool.Pool
+	connection PgxPoolIface //*pgxpool.Pool
 	Sync       bool
 }
 
@@ -71,7 +83,11 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 
 	defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+			errtx := tx.Rollback(ctx)
+			if errtx != nil {
+				log.Printf("Error: [PostgreSQLStorage] failed to Rollback transaction err: %v", err)
+			}
+
 		}
 	}()
 
