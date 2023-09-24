@@ -6,25 +6,18 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
-
-	// 	"reflect"
-	// 	"regexp"
-
 	"testing"
 	"time"
 
-	// 	"github.com/DATA-DOG/go-sqlmock"
-	// 	_ "github.com/jackc/pgx/v5/stdlib"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v3"
-	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 	"github.com/stretchr/testify/assert"
-	// 	"github.com/stretchr/testify/assert"
+
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
 func TestPostgreSQLStorage_Ping(t *testing.T) {
-	mock, err := pgxmock.NewPool() //sqlmock.New(sqlmock.MonitorPingsOption(true))
+	mock, err := pgxmock.NewPool()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}

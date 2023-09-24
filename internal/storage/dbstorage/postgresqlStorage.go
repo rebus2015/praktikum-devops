@@ -32,7 +32,7 @@ type PgxPoolIface interface {
 }
 
 type PostgreSQLStorage struct {
-	connection PgxPoolIface //*pgxpool.Pool
+	connection PgxPoolIface
 	Sync       bool
 }
 
