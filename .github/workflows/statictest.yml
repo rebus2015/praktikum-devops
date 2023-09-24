@@ -13,7 +13,7 @@ jobs:
     container: golang:1.21
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3\
+        uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
