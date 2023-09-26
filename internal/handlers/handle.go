@@ -3,8 +3,10 @@
 package handlers
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -48,6 +50,8 @@ type multipleMetricsContextKey struct{}
 
 type singleMetricContextKey struct{}
 
+type bodyContextKey struct{}
+
 var contentTypes = []string{
 	"application/javascript",
 	"application/json",
@@ -82,7 +86,9 @@ func NewRouter(
 	r.Get("/ping", GetDBConnState(postgreStorage))
 
 	r.Route("/update", func(r chi.Router) {
-		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
+		r.With(gzipMiddleware).
+			With(rsaMiddleware(cfg.CryptoKey)).
+			With(MiddlewareGeneratorSingleJSON(cfg.Key)).
 			Post("/", UpdateJSONMetricHandlerFunc(metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}/{val}", func(r chi.Router) {
 			r.Post("/", UpdateMetricHandlerFunc(metricStorage))
@@ -90,12 +96,16 @@ func NewRouter(
 	})
 
 	r.Route("/updates", func(r chi.Router) {
-		r.With(MiddlewareGeneratorMultipleJSON(cfg.Key)).
+		r.With(gzipMiddleware).
+			With(rsaMiddleware(cfg.CryptoKey)).
+			With(MiddlewareGeneratorMultipleJSON(cfg.Key)).
 			Post("/", UpdateJSONMultipleMetricHandlerFunc(metricStorage, cfg.Key))
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.With(MiddlewareGeneratorSingleJSON(cfg.Key)).
+		r.With(gzipMiddleware).
+			With(rsaMiddleware(cfg.CryptoKey)).
+			With(MiddlewareGeneratorSingleJSON(cfg.Key)).
 			Post("/", GetJSONMetricHandlerFunc(metricStorage, cfg.Key))
 		r.Route("/{mtype}/{name}", func(r chi.Router) {
 			r.Get("/", GetMetricHandlerFunc(metricStorage))
@@ -373,23 +383,88 @@ func GetJSONMetricHandlerFunc(
 	}
 }
 
+func gzipMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Our middleware logic goes here...
+		var buf []byte
+		var err error
+		if r.Header.Get(`Content-Encoding`) == compressed {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				log.Printf("Failed to create gzip reader: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_, err = gz.Read(buf)
+			if err != nil {
+				log.Printf("Failed to read bytes from gzip reader: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer gz.Close()
+		} else {
+			buf, err = io.ReadAll(r.Body)
+
+			if err != nil {
+				log.Printf("Failed to read bytes from request body in gzip encoder: %v", err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		ctx := context.WithValue(r.Context(), bodyContextKey{}, buf)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			content, ok := r.Context().Value(bodyContextKey{}).([]byte)
+			if !ok {
+				log.Printf(
+					"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+				)
+				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				return
+			}
+			var nextData []byte
+			var err error
+			if key != nil {
+				nextData, err = signer.DecriptMessage(key, content)
+				if err != nil {
+					log.Printf(
+						"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+					)
+					http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+					return
+				}
+
+			} else {
+				nextData = content
+			}
+
+			ctx := context.WithValue(r.Context(), bodyContextKey{}, nextData)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 // MiddlewareGeneratorSingleJSON промежуточная функция обработки одиночной метрики в формате JSON.
 func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 			var reader io.Reader
-			if r.Header.Get(`Content-Encoding`) == compressed {
-				gz, err := gzip.NewReader(r.Body)
-				if err != nil {
-					log.Printf("Failed to create gzip reader: %v", err.Error())
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				reader = gz
-				defer gz.Close()
-			} else {
-				reader = r.Body
+			content, ok := r.Context().Value(bodyContextKey{}).([]byte)
+			if !ok {
+				log.Printf(
+					"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+				)
+				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				return
 			}
+			reader = bytes.NewReader(content)
 
 			metric := &model.Metrics{}
 			decoder := json.NewDecoder(reader)
@@ -453,18 +528,15 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var reader io.Reader
-			if r.Header.Get(`Content-Encoding`) == `gzip` {
-				gz, err := gzip.NewReader(r.Body)
-				if err != nil {
-					log.Printf("Failed to create gzip reader: %v", err.Error())
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				reader = gz
-				defer gz.Close()
-			} else {
-				reader = r.Body
+			content, ok := r.Context().Value(bodyContextKey{}).([]byte)
+			if !ok {
+				log.Printf(
+					"Error: [MiddlewareGeneratorMultipleJSON] Metric info not found in context status-'500'",
+				)
+				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				return
 			}
+			reader = bytes.NewReader(content)
 			log.Println("Incoming request Updates, before decoder")
 			defer r.Body.Close()
 			var metrics []*model.Metrics
