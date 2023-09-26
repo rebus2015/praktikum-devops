@@ -16,7 +16,7 @@ type Result struct {
 
 type Args struct {
 	Client  *http.Client
-	Metrics []*model.Metrics
+	Metrics []model.Metrics
 	Config  *Config
 }
 

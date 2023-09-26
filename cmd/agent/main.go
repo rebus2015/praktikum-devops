@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-deeper/chunks"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 
@@ -220,18 +223,47 @@ func (m *metricset) get(mtype string, name string) *model.Metrics {
 	return &metric
 }
 
-func request(ctx context.Context, metrics []*model.Metrics, cfg *agent.Config) *http.Request {
+func encrypt(d []byte, pubKey *rsa.PublicKey) ([]byte, error) {
+	rnd := rand.Reader
+	hash := sha256.New()
+	size := pubKey.Size() - 2*hash.Size() - 2
+	encripted := make([]byte, 0)
+	slices := chunks.Split(d, size)
+	for _, slice := range slices {
+		data, err := rsa.EncryptOAEP(hash, rnd, pubKey, slice, []byte(""))
+		if err != nil {
+			return nil, fmt.Errorf("message encript error: %w", err)
+		}
+		encripted = append(encripted, data...)
+	}
+	fmt.Fprintln(os.Stdout, len(d), len(encripted))
+	return encripted, nil
+}
+
+func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *http.Request {
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
 		Path:   "updates",
 	}
+
 	data, err := json.Marshal(metrics)
 	if err != nil {
 		log.Printf("Error request '%v'\n", err)
 		log.Panicf("Error request '%v'\n", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), bytes.NewBuffer(data))
+
+	buf := bytes.NewBuffer(data)
+	if cfg.CryptoKey != nil {
+		d, err1 := encrypt(data, cfg.CryptoKey)
+		if err1 != nil {
+			log.Printf("Create Request failed! with error: %v\n", err)
+			log.Panicf("Create Request failed! with error: %v\n", err)
+		}
+		buf = bytes.NewBuffer(d)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), buf)
 	if err != nil {
 		log.Printf("Create Request failed! with error: %v\n", err)
 		log.Panicf("Create Request failed! with error: %v\n", err)
@@ -284,9 +316,15 @@ func (m *metricset) updWorkerPs(ctx context.Context, pollInterval time.Duration)
 	}
 }
 
+func valuer(m []*model.Metrics) []model.Metrics {
+	var mm []model.Metrics
+	for _, s := range m {
+		mm = append(mm, *s)
+	}
+	return mm
+}
+
 func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) error {
-	// ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	// defer cancel()
 	client := &http.Client{}
 	metricList, err := m.gatherJSONMetrics(cfg.Key)
 	if err != nil {
@@ -307,7 +345,7 @@ func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) e
 			ExecFn:     sendreq,
 			Args: agent.Args{
 				Client:  client,
-				Metrics: section,
+				Metrics: valuer(section),
 				Config:  cfg,
 			},
 		})
@@ -370,6 +408,7 @@ func main() {
 		log.Panicf("Error reading configuration from env variables: %v", err)
 		return
 	}
+
 	log.Printf("agent started on %v", cfg.ServerAddress)
 	ctx, cancel := context.WithCancel(context.Background())
 

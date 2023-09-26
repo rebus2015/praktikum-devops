@@ -4,8 +4,10 @@ package signer
 
 import (
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -87,4 +89,21 @@ func srcString(model *model.Metrics) (string, error) {
 		log.Printf("unknown metric type exception '%v' trying to Sign metric", model.MType)
 		return "", fmt.Errorf("unknown metric type exception '%v' trying to Sign metric", model.MType)
 	}
+}
+
+func DecriptMessage(key *rsa.PrivateKey, msg []byte) ([]byte, error) {
+	size := key.PublicKey.Size()
+	if len(msg)%size != 0 {
+		return nil, errors.New("message length error")
+	}
+	hash := sha256.New()
+	dectipted := make([]byte, 0)
+	for i := 0; i < len(msg); i += size {
+		data, err := rsa.DecryptOAEP(hash, nil, key, msg[i:i+size], []byte(""))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt message body err: %w", err)
+		}
+		dectipted = append(dectipted, data...)
+	}
+	return dectipted, nil
 }
