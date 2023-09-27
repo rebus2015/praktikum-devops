@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // #nosec
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -81,6 +84,20 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		Handler:      r,
 	}
+	idleConnsClosed := make(chan struct{})
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		<-sigChan
+		if err := srv.Shutdown(context.Background()); err != nil {
+			// ошибки закрытия Listener
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+		close(idleConnsClosed)
+	}()
 	err = srv.ListenAndServe()
 	log.Printf("server started \n address:%v \n database:%v,\n restore interval: %v ",
 		cfg.ServerAddress, cfg.ConnectionString, cfg.StoreInterval)
@@ -88,4 +105,6 @@ func main() {
 	if err != nil {
 		log.Printf("server exited with %v", err)
 	}
+	<-idleConnsClosed
+	fmt.Println("Server Shutdown gracefully")
 }
