@@ -110,7 +110,7 @@ func (c *Config) parseConfigFie() error {
 	if c.StoreInterval == time.Second*0 {
 		c.StoreInterval = cfg.StoreInterval
 	}
-	if c.Restore == false {
+	if !c.Restore {
 		c.Restore = cfg.Restore
 	}
 	if c.StoreFile == "" {
@@ -140,7 +140,10 @@ func (c *Config) getCryptoKey() error {
 	}
 	stat, _ := file.Stat() //Get file attribute information
 	data := make([]byte, stat.Size())
-	file.Read(data)
+	_, err = file.Read(data)
+	if err != nil {
+		return err
+	}
 	file.Close()
 	//2. Decode the resulting string pem
 	block, _ := pem.Decode(data)
