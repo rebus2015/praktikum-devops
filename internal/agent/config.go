@@ -29,8 +29,8 @@ type Config struct {
 
 func GetConfig() (*Config, error) {
 	conf := Config{}
-	flag.StringVar(&conf.confFile, "config", "/Users/mak/go/praktikum-devops/agentConf.json", "Pass the conf.json path")
-	flag.StringVar(&conf.confFile, "c", "/Users/mak/go/praktikum-devops/agentConf.json", "Pass the conf.json path (shorthand)")
+	flag.StringVar(&conf.confFile, "config", "", "Pass the conf.json path")
+	flag.StringVar(&conf.confFile, "c", "", "Pass the conf.json path (shorthand)")
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
 	flag.DurationVar(&conf.ReportInterval, "r", time.Second*11, "Interval before push metrics to server")
 	flag.DurationVar(&conf.PollInterval, "p", time.Second*5, "Interval between metrics reads from runtime")
@@ -130,7 +130,10 @@ func (c *Config) getCryptoKey() error {
 	}
 	stat, _ := file.Stat() //Get file attribute information
 	data := make([]byte, stat.Size())
-	file.Read(data)
+	_, err = file.Read(data)
+	if err != nil {
+		return err
+	}
 	file.Close()
 	//2. Decode the resulting string pem
 	block, _ := pem.Decode(data)
