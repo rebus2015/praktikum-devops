@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
-
 	"github.com/stretchr/testify/assert"
 )
 

@@ -49,7 +49,7 @@ func GetConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent  config: %w", err)
 	}
-	err = conf.parseConfigFie()
+	err = conf.parseConfigFile()
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent config(Json): %w", err)
 	}
@@ -84,7 +84,7 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-func (c *Config) parseConfigFie() error {
+func (c *Config) parseConfigFile() error {
 	if c.confFile == "" {
 		return nil
 	}
@@ -147,6 +147,9 @@ func (c *Config) getCryptoKey() error {
 	file.Close()
 	//2. Decode the resulting string pem
 	block, _ := pem.Decode(data)
+	if block == nil {
+		return errors.New("error reading key bytes")
+	}
 
 	privateKey, err3 := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err3 != nil {
