@@ -291,7 +291,6 @@ func TestConfig_getCryptoKey(t *testing.T) {
 		Key              string
 		ConnectionString string
 		CryptoKeyFile    string
-		confFile         string
 		CryptoKey        *rsa.PrivateKey
 	}
 	tests := []struct {
