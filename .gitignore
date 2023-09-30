@@ -16,7 +16,6 @@ cmd/agent/main
 cmd/agent/agent
 cmd/server/main
 cmd/server/server
-cmd/staticlint/.DS_Store
 keys/
 # Dependency directories (remove the comment below to include it)
 vendor/
@@ -24,5 +23,6 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+.DS_Store
 agentConf.json
 serverConf.json
