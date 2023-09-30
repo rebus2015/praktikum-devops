@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	// 	"testing"
-	// 	"time"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v3"
 	"github.com/stretchr/testify/assert"
