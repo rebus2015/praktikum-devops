@@ -395,7 +395,7 @@ func gzipMiddleware(next http.Handler) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			_, err = gz.Read(buf)
+			buf, err = io.ReadAll(gz)
 			if err != nil {
 				log.Printf("Failed to read bytes from gzip reader: %v", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
