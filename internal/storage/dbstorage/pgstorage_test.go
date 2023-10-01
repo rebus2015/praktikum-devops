@@ -12,8 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pashagolub/pgxmock/v3"
-	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 )
 
 func TestPostgreSQLStorage_Ping(t *testing.T) {
