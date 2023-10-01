@@ -4,11 +4,11 @@
 *.dll
 *.so
 *.dylib
-
+*.session.sql
 # Test binary, built with `go test -c`
 *.test
 *.json
-*.sql
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
@@ -25,3 +25,4 @@ vendor/
 .idea
 .vscode
 keys
+
