@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -662,5 +663,38 @@ func TestUpdateMetricHandlerFunc(t *testing.T) {
 			// проверяем код ответа
 			assert.Equal(t, tt.wantcode, statusCode)
 		})
+	}
+}
+func TestGzipMiddleware(t *testing.T) {
+	// Create a mock handler
+	expectedBody := []byte("test body with respect to unzip process")
+	mockHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Assert that the request context has the expected value
+		buf, _ := r.Context().Value(bodyContextKey{}).([]byte)
+		assert.Equal(t, buf, expectedBody)
+	})
+
+	var gzipbody bytes.Buffer
+	gz := gzip.NewWriter(&gzipbody)
+	if _, err := gz.Write(expectedBody); err != nil {
+		log.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	compressedRequest, _ := http.NewRequest("POST", "/", &gzipbody)
+	compressedRequest.Header.Set("Content-Encoding", "gzip")
+
+	// Use the gzipMiddleware with the mock handler
+	handler := gzipMiddleware(mockHandler)
+
+	// Perform the test request
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, compressedRequest)
+
+	// Check the response status code
+	if recorder.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, but got %d", http.StatusOK, recorder.Code)
 	}
 }

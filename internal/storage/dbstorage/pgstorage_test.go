@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pashagolub/pgxmock/v3"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPostgreSQLStorage_Ping(t *testing.T) {
@@ -192,4 +192,79 @@ func TestPostgreSQLStorage_Close(t *testing.T) {
 	pgs.Close()
 
 	assert.Error(t, pgs.connection.Ping(context.Background()))
+}
+
+func TestPostgreSQLStorage_SaveTicker(t *testing.T) {
+	// Create a mock storage with sample data
+	ms := &memstorage.MemStorage{}
+
+	// Use a shorter ticker duration for testing
+	storeInterval := 100 * time.Millisecond
+	// Create the FileStorage instance and call the SaveTicker function
+
+	mock, err := pgxmock.NewPool()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+
+	defer func() {
+		mock.Close()
+	}()
+	storage := PostgreSQLStorage{
+		connection: mock,
+		Sync:       false,
+	}
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	go storage.SaveTicker(storeInterval, ms)
+
+	// Wait for some time to allow the ticker to trigger
+	time.Sleep(500 * time.Millisecond)
+
+	// Stop the ticker
+	tickerStop := make(chan bool)
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		tickerStop <- true
+	}()
+
+	// we make sure that all expectations were met
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestNewStorage(t *testing.T) {
+	type args struct {
+		ctx              context.Context
+		connectionString string
+		sync             bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *PostgreSQLStorage
+		wantErr bool
+	}{
+		{
+			"negative test 1",
+			args{
+				ctx:              context.Background(),
+				connectionString: "",
+				sync:             false,
+			},
+			&PostgreSQLStorage{},
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewStorage(tt.args.ctx, tt.args.connectionString, tt.args.sync)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewStorage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+		})
+	}
 }

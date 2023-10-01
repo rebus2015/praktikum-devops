@@ -3,6 +3,9 @@
 package signer
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"fmt"
 	"testing"
 
@@ -173,4 +176,22 @@ func Test_srcString(t *testing.T) {
 			assert.Equal(t, got, tt.want)
 		})
 	}
+}
+
+func TestDecryptMessage(t *testing.T) {
+	// Generate a key pair for testing
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err, "Failed to generate key pair")
+
+	// Encrypt a test message using the public key
+	message := []byte("test message")
+	encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, &key.PublicKey, message, []byte(""))
+	assert.NoError(t, err, "Failed to encrypt test message")
+
+	// Decrypt the encrypted message
+	decrypted, err := DecriptMessage(key, encrypted)
+
+	// Assertions
+	assert.NoError(t, err, "DecryptMessage should not return an error")
+	assert.Equal(t, message, decrypted, "Decrypted message should match the original message")
 }

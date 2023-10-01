@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
 	"github.com/stretchr/testify/assert"
@@ -164,4 +165,42 @@ func Test_newReader(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSaveTicker(t *testing.T) {
+	// Create a mock storage with sample data
+	ms := &memstorage.MemStorage{
+		Gauges: map[string]float64{
+			"metric1": 10.5,
+			"metric2": 20.0,
+		},
+		Counters: map[string]int64{
+			"metric3": 30,
+			"metric4": 40,
+		},
+	}
+
+	// Use a shorter ticker duration for testing
+	storeInterval := 100 * time.Millisecond
+	storeFile := "tempstore"
+	// Create the FileStorage instance and call the SaveTicker function
+	f := &FileStorage{StoreFile: storeFile}
+	go f.SaveTicker(storeInterval, ms)
+
+	// Wait for some time to allow the ticker to trigger
+	time.Sleep(500 * time.Millisecond)
+
+	// Stop the ticker
+	tickerStop := make(chan bool)
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		tickerStop <- true
+	}()
+	defer func() {
+		err := os.Remove(storeFile)
+		if err != nil {
+			t.Errorf("os.Remove() error = %v", err)
+		}
+	}()
+	assert.FileExists(t, storeFile)
 }
