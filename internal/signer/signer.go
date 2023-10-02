@@ -91,7 +91,7 @@ func srcString(model *model.Metrics) (string, error) {
 	}
 }
 
-func DecriptMessage(key *rsa.PrivateKey, msg []byte) ([]byte, error) {
+func DecryptMessage(key *rsa.PrivateKey, msg []byte) ([]byte, error) {
 	size := key.PublicKey.Size()
 	if len(msg)%size != 0 {
 		return nil, errors.New("message length error")
