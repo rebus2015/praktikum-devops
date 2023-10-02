@@ -79,7 +79,7 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-func (c *Config) parseConfigFie() error {
+func (c *Config) parseConfigFile() error {
 	if c.confFile == "" {
 		return nil
 	}
