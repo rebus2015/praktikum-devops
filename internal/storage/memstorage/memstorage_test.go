@@ -579,7 +579,6 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 					assert.True(t, err == nil)
 					assert.Equal(t, val, *metric.Delta)
 				}
-
 			}
 		})
 	}

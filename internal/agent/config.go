@@ -1,4 +1,4 @@
-// Package agent реализует агент сбора метрик
+// Package agent реализует агент сбора метрик.
 package agent
 
 import (
@@ -14,6 +14,12 @@ import (
 	"time"
 
 	"github.com/caarlos0/env"
+	log "github.com/sirupsen/logrus"
+)
+
+var (
+	defReportInterval = time.Second * 10
+	defPollInterval   = time.Second * 6
 )
 
 type Config struct {
@@ -21,7 +27,7 @@ type Config struct {
 	ReportInterval time.Duration `env:"PUSH_TIMEOUT" json:"report_interval"`    // Интервал отправки метрик на сервер
 	PollInterval   time.Duration `env:"POLL_INTERVAL" json:"poll_interval"`     // Интервал сбора метрик
 	Key            string        `env:"KEY" json:"-"`                           // Ключ для подписи данных
-	RateLimit      int           `env:"RATE_LIMIT" json:"-"`                    // Количество одновременно исходящих запросов на сервер
+	RateLimit      int           `env:"RATE_LIMIT" json:"-"`                    // Количество одновременных запросов
 	CryptoKeyFile  string        `env:"CRYPTO_KEY" json:"crypto_key,omitempty"` // Путь к файлу с открытым ключом
 	confFile       string        `env:"CONFIG" json:"-"`
 	CryptoKey      *rsa.PublicKey
@@ -32,11 +38,11 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.confFile, "config", "", "Pass the conf.json path")
 	flag.StringVar(&conf.confFile, "c", "", "Pass the conf.json path (shorthand)")
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
-	flag.DurationVar(&conf.ReportInterval, "r", time.Second*11, "Interval before push metrics to server")
-	flag.DurationVar(&conf.PollInterval, "p", time.Second*5, "Interval between metrics reads from runtime")
+	flag.DurationVar(&conf.ReportInterval, "r", defReportInterval, "Interval before push metrics to server")
+	flag.DurationVar(&conf.PollInterval, "p", defPollInterval, "Interval between metrics reads from runtime")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
 	flag.IntVar(&conf.RateLimit, "l", 5, "Workers count")
-	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address") //"/Users/mak/go/praktikum-devops/keys/publicKey.pem",
+	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address")
 	flag.Parse()
 
 	err := env.Parse(&conf)
@@ -64,19 +70,19 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if err = json.Unmarshal(data, &conf); err != nil {
-		return err
+		return fmt.Errorf("unmarshal config failed with error: ,%w", err)
 	}
 	c.ServerAddress = conf.ServerAddress
 	c.ReportInterval, err = time.ParseDuration(conf.ReportInterval)
 	if err != nil {
-		return err
+		return fmt.Errorf("time.ParceDuration for ReportInterval failed with error: ,%w", err)
 	}
 	c.PollInterval, err = time.ParseDuration(conf.PollInterval)
 	if err != nil {
-		return err
+		return fmt.Errorf("time.ParceDuration PollInterval failed with error: ,%w", err)
 	}
 	c.CryptoKeyFile = conf.CryptoKeyFile
-	return err
+	return nil
 }
 
 func (c *Config) parseConfigFile() error {
@@ -85,18 +91,23 @@ func (c *Config) parseConfigFile() error {
 	}
 	josnFile, err := os.Open(c.confFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("open json config file failed with error: ,%w", err)
 	}
-	defer josnFile.Close()
+	defer func() {
+		err := josnFile.Close()
+		if err != nil {
+			log.Printf("failed to close json config file: %v", err.Error())
+		}
+	}()
 
 	r, err := io.ReadAll(josnFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read json config file: %v", err.Error())
 	}
 	var cfg Config
 	err = json.Unmarshal(r, &cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal json config file: %v", err.Error())
 	}
 
 	if c.ServerAddress == "" {
@@ -123,26 +134,36 @@ func (c *Config) getCryptoKey() error {
 		return fmt.Errorf("error reading agent config: %w", err)
 	}
 	filename := c.CryptoKeyFile
-	//1. Read the public key information and put it in the data variable
+	// 1. Read the public key information and put it in the data variable
 	file, err := os.Open(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("error trying to open json config file: %w", err)
 	}
-	stat, _ := file.Stat() //Get file attribute information
+	stat, err := file.Stat() // Get file attribute information
+	if err != nil {
+		return fmt.Errorf("error trying get file attribute information for json config file: %w", err)
+	}
 	data := make([]byte, stat.Size())
 	_, err = file.Read(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("error trying to read json config file: %w", err)
 	}
-	file.Close()
-	//2. Decode the resulting string pem
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("error trying to close json config file: %w", err)
+	}
+	// 2. Decode the resulting string pem
 	block, _ := pem.Decode(data)
 
-	//3. Use x509 to parse the encoded public key
-	pubInterface, err2 := x509.ParsePKIXPublicKey(block.Bytes)
-	if err2 != nil {
-		return err2
+	// 3. Use x509 to parse the encoded public key
+	pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("error trying use x509 to parse the encoded public key: %w", err)
 	}
-	c.CryptoKey = pubInterface.(*rsa.PublicKey)
+	cKey, ok := pubInterface.(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("error for type assertion pubInterface.(*rsa.PublicKey)")
+	}
+	c.CryptoKey = cKey
 	return nil
 }

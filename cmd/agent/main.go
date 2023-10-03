@@ -172,7 +172,7 @@ func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 			err := hashObject.Sign(gmetric)
 			if err != nil {
 				log.Printf("Error Sign gauges Statistic: %v,\n Gauge:%v", err, gmetric)
-				return nil, err
+				return nil, fmt.Errorf("sign gauge error:%w", err)
 			}
 		}
 		metricList = append(metricList, gmetric)
@@ -186,7 +186,7 @@ func (m *metricset) gatherJSONMetrics(key string) ([]*model.Metrics, error) {
 			err := hashObject.Sign(cmetric)
 			if err != nil {
 				log.Printf("Error Sign counter Statistic: %v,\n Counter: %v", err, cmetric)
-				return nil, err
+				return nil, fmt.Errorf("sign counter stat error:%w", err)
 			}
 		}
 		metricList = append(metricList, cmetric)
@@ -257,8 +257,8 @@ func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *h
 	if cfg.CryptoKey != nil {
 		d, err1 := encrypt(data, cfg.CryptoKey)
 		if err1 != nil {
-			log.Printf("Create Request failed! with error: %v\n", err)
-			log.Panicf("Create Request failed! with error: %v\n", err)
+			log.Printf("Create Request failed! with error: %s\n", err)
+			log.Panicf("Create Request failed! with error: %s\n", err)
 		}
 		buf = bytes.NewBuffer(d)
 	}
@@ -278,13 +278,18 @@ func sendreq(ctx context.Context, args agent.Args) error {
 	response, err := args.Client.Do(r)
 	if err != nil {
 		log.Printf("Send request error: %v", err)
-		return err
+		return fmt.Errorf("send request error:%w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Printf("response.Body.Close error: %v", err)
+		}
+	}()
+
 	b, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Printf("Read response body error: %v", err)
-		return err
+		return fmt.Errorf("responce read error:%w", err)
 	}
 
 	log.Printf("Client request for update metric %s\n", b)
@@ -317,7 +322,7 @@ func (m *metricset) updWorkerPs(ctx context.Context, pollInterval time.Duration)
 }
 
 func valuer(m []*model.Metrics) []model.Metrics {
-	var mm []model.Metrics
+	var mm = make([]model.Metrics, len(m))
 	for _, s := range m {
 		mm = append(mm, *s)
 	}

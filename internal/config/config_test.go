@@ -212,7 +212,13 @@ func TestConfig_parseConfigFile(t *testing.T) {
 				return
 			}
 
-			defer os.Remove(tempFile.Name())
+			defer func() {
+				err := os.Remove(tempFile.Name())
+				if err != nil {
+					fmt.Println("error removing temporary file:", errt)
+				}
+			}()
+
 			_, errw := tempFile.Write([]byte(tt.data))
 			if errw != nil {
 				fmt.Println("Error writing to temporary file:", errw)
@@ -261,7 +267,6 @@ func TestConfig_parseConfigFile(t *testing.T) {
 				assert.Equal(t, tt.wantf.CryptoKeyFile, c.CryptoKeyFile)
 				assert.Equal(t, tt.wantf.CryptoKey, c.CryptoKey)
 			}
-
 		})
 	}
 }
@@ -329,17 +334,19 @@ func TestConfig_getCryptoKey(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-
 		t.Run(tt.name, func(t *testing.T) {
-
 			var err error
 			tempFile, errt := os.CreateTemp("", "key.pem")
 			if errt != nil {
 				fmt.Println("Error creating temporary file:", errt)
 				return
 			}
+			defer func() {
+				if err := os.Remove(tempFile.Name()); err != nil {
+					fmt.Println("Error removing temporary file:", err)
+				}
+			}()
 
-			defer os.Remove(tempFile.Name())
 			_, errw := tempFile.Write([]byte(tt.data))
 			if errw != nil {
 				fmt.Println("Error writing to temporary file:", errw)

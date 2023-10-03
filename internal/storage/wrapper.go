@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 
@@ -13,6 +14,8 @@ type RepositoryWrapper struct {
 	memstorage       *memstorage.MemStorage
 	secondarystorage SecondaryStorage
 }
+
+const fsSaveErrorMsg string = "FileStorage Save error: %v"
 
 var _ Repository = new(RepositoryWrapper)
 
@@ -29,11 +32,11 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 		if rw.secondarystorage.SyncMode() {
 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
-				log.Printf("FileStorage Save error: %v", err)
+				log.Printf(fsSaveErrorMsg, err)
 			}
 		}
 	}
-	return retval, err
+	return retval, fmt.Errorf("fs save error:%w", err)
 }
 
 func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
@@ -42,23 +45,36 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 		if rw.secondarystorage.SyncMode() {
 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
-				log.Printf("FileStorage Save error: %v", err)
+				log.Printf(fsSaveErrorMsg, err)
+				return 0, fmt.Errorf("secondarystorage Save error: %w", errs)
 			}
 		}
 	}
-	return retval, err
+	return retval, nil
 }
 
 func (rw *RepositoryWrapper) GetCounter(name string) (int64, error) {
-	return rw.memstorage.GetCounter(name)
+	result, err := rw.memstorage.GetCounter(name)
+	if err != nil {
+		return 0, fmt.Errorf("GetCounter error: %w", err)
+	}
+	return result, nil
 }
 
 func (rw *RepositoryWrapper) GetGauge(name string) (float64, error) {
-	return rw.memstorage.GetGauge(name)
+	result, err := rw.memstorage.GetGauge(name)
+	if err != nil {
+		return 0, fmt.Errorf("GetGauge error: %w", err)
+	}
+	return result, nil
 }
 
 func (rw *RepositoryWrapper) GetView() ([]memstorage.MetricStr, error) {
-	return rw.memstorage.GetView()
+	result, err := rw.memstorage.GetView()
+	if err != nil {
+		return nil, fmt.Errorf("GetView error: %w", err)
+	}
+	return result, nil
 }
 
 func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
@@ -67,7 +83,7 @@ func (rw *RepositoryWrapper) AddMetrics(m []*model.Metrics) error {
 		if rw.secondarystorage.SyncMode() {
 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
-				log.Printf("FileStorage Save error: %v", err)
+				log.Printf(fsSaveErrorMsg, err)
 			}
 		}
 	}

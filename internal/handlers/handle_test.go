@@ -217,7 +217,11 @@ func testRequest(t *testing.T, ts *httptest.Server, method, path string) (int, s
 	respBody, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("error: %v", err)
+		}
+	}()
 
 	return resp.StatusCode, string(respBody)
 }
@@ -227,7 +231,6 @@ func ptr[T any](v T) *T {
 }
 
 func testRequestJSONstring(t *testing.T, ts *httptest.Server, method, path string, metric string) (int, []byte) {
-
 	req, err := http.NewRequest(method, ts.URL+path, bytes.NewBuffer([]byte(metric)))
 	assert.NoError(t, err)
 	req.Header.Add("content-type", "application/json")
@@ -237,7 +240,11 @@ func testRequestJSONstring(t *testing.T, ts *httptest.Server, method, path strin
 
 	respBody, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("error reponce body close: %v", err)
+		}
+	}()
 	respBody = respBody[:len(respBody)-1]
 	return resp.StatusCode, respBody
 }
@@ -465,10 +472,9 @@ func (s *sqlStorageMock) Ping(ctx context.Context) error {
 	if s.isOpened {
 		return nil
 	}
-
 	return fmt.Errorf("Erroe: sqlStorageMock connection state is closed.")
-
 }
+
 func (s *sqlStorageMock) Close() {
 	s.isOpened = false
 }
@@ -683,7 +689,7 @@ func TestGzipMiddleware(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	compressedRequest, _ := http.NewRequest("POST", "/", &gzipbody)
+	compressedRequest, _ := http.NewRequest(http.MethodPost, "/", &gzipbody)
 	compressedRequest.Header.Set("Content-Encoding", "gzip")
 
 	// Use the gzipMiddleware with the mock handler

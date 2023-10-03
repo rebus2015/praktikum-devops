@@ -38,11 +38,9 @@ func TestPostgreSQLStorage_Ping(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
-
 }
 
 func Test_restoreDB(t *testing.T) {
-
 	mock, err := pgxmock.NewPool()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -67,7 +65,6 @@ func Test_restoreDB(t *testing.T) {
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
-
 }
 
 func TestPostgreSQLStorage_Restore(t *testing.T) {
@@ -176,7 +173,6 @@ func TestPostgreSQLStorage_SyncMode(t *testing.T) {
 	}
 
 	assert.Equal(t, pgs.SyncMode(), pgs.Sync)
-
 }
 
 func TestPostgreSQLStorage_Close(t *testing.T) {
@@ -237,7 +233,6 @@ func TestPostgreSQLStorage_SaveTicker(t *testing.T) {
 
 func TestNewStorage(t *testing.T) {
 	type args struct {
-		ctx              context.Context
 		connectionString string
 		sync             bool
 	}
@@ -250,7 +245,6 @@ func TestNewStorage(t *testing.T) {
 		{
 			"negative test 1",
 			args{
-				ctx:              context.Background(),
 				connectionString: "",
 				sync:             false,
 			},
@@ -260,12 +254,11 @@ func TestNewStorage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewStorage(tt.args.ctx, tt.args.connectionString, tt.args.sync)
+			_, err := NewStorage(context.Background(), tt.args.connectionString, tt.args.sync)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 		})
 	}
 }

@@ -1,4 +1,4 @@
-// Package memstorage реализует хранилище метрик в оперативной памяти
+// Package memstorage реализует хранилище метрик в оперативной памяти.
 package memstorage
 
 import (
@@ -35,7 +35,7 @@ func (c CMetric) String() string {
 func (c *CMetric) TryParse(cname string, cval string) error {
 	v, err := strconv.ParseInt(cval, 10, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("strconv.ParseInt error parsing counter metric value: %w", err)
 	}
 	c.Name = cname
 	c.Val = v
@@ -45,7 +45,7 @@ func (c *CMetric) TryParse(cname string, cval string) error {
 func (g *GMetric) TryParse(gname string, gval string) error {
 	v, err := strconv.ParseFloat(gval, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("strconv.ParseFloat error parsing gauge metric value: %w", err)
 	}
 	g.Name = gname
 	g.Val = v
@@ -144,7 +144,7 @@ func (m *MemStorage) GetCounter(name string) (int64, error) {
 
 	if _, ok := m.Counters[name]; !ok {
 		log.Printf(
-			"counter with name '%v' is not found",
+			"error: counter with name '%v' is not found",
 			name,
 		)
 		return 0, fmt.Errorf("counter with name '%v' is not found", name)

@@ -63,9 +63,17 @@ var contentTypes = []string{
 }
 
 const (
-	counter    string = "counter"
-	gauge      string = "gauge"
-	compressed string = `gzip`
+	counter                    string = "counter"
+	gauge                      string = "gauge"
+	compressed                 string = `gzip`
+	keyCT                      string = "Content-Type"
+	keyValueJSON               string = "application/json"
+	missingContextMessage      string = "Metric info not found in context"
+	missingContextMessageLong  string = "Error: [updateJSONMetricHandlerFunc] Metric info not found in context ('500')"
+	unkMTMessage               string = "Unknown metric type"
+	resJSONSignErrorMessage    string = "Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v"
+	httpJSONSignErrorMessage   string = "Result Json Sign error"
+	retUpdateJSONResultMessage string = "Возвращаем UpdateJSON result :%v"
 )
 
 // NewRouter инициализация роутера с помощью библиотеки chi и описание доступных эндпоинтов.
@@ -145,7 +153,7 @@ func UpdateJSONMultipleMetricHandlerFunc(
 			log.Printf(
 				"Error: [UpdateJSONMultipleMetricHandlerFunc] Metric info not found in context status-'500'",
 			)
-			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			http.Error(w, missingContextMessage, http.StatusInternalServerError)
 			return
 		}
 		err := metricStorage.AddMetrics(metrics)
@@ -166,10 +174,10 @@ func UpdateJSONMultipleMetricHandlerFunc(
 				sssignErr := hashObject.Sign(metrics[i])
 				if sssignErr != nil {
 					log.Printf(
-						"Error: [updateJSONMetricHandlerFunc] Result Json Sign data error :%v",
+						resJSONSignErrorMessage,
 						err,
 					)
-					http.Error(w, "Result Json Sign error", http.StatusInternalServerError)
+					http.Error(w, httpJSONSignErrorMessage, http.StatusInternalServerError)
 				}
 			}
 			retval[i] = model.Metrics{
@@ -181,7 +189,7 @@ func UpdateJSONMultipleMetricHandlerFunc(
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(keyCT, keyValueJSON)
 		w.WriteHeader(http.StatusOK)
 		log.Printf("Try to encode :%v to metric[]", retval)
 
@@ -189,9 +197,9 @@ func UpdateJSONMultipleMetricHandlerFunc(
 		err = encoder.Encode(retval)
 		if err != nil {
 			log.Printf("Error: [updateJSONMetricHandlerFunc] Result Json encode error :%v", err)
-			http.Error(w, "Result Json encode error", http.StatusInternalServerError)
+			http.Error(w, "sjosn encode error", http.StatusInternalServerError)
 		}
-		log.Printf("Возвращаем UpdateJSON result :%v", retval)
+		log.Printf(retUpdateJSONResultMessage, retval)
 	}
 }
 
@@ -204,9 +212,9 @@ func UpdateJSONMetricHandlerFunc(
 		metric, ok := r.Context().Value(singleMetricContextKey{}).(*model.Metrics)
 		if !ok {
 			log.Printf(
-				"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+				missingContextMessageLong,
 			)
-			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			http.Error(w, missingContextMessage, http.StatusInternalServerError)
 			return
 		}
 
@@ -259,7 +267,7 @@ func UpdateJSONMetricHandlerFunc(
 		default:
 			{
 				log.Printf("Error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500")
-				http.Error(w, "Unknown metric type", http.StatusInternalServerError)
+				http.Error(w, unkMTMessage, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -276,7 +284,7 @@ func UpdateJSONMetricHandlerFunc(
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(keyCT, keyValueJSON)
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(retval)
@@ -304,7 +312,7 @@ func UpdateMetricHandlerFunc(
 			_, err = metricStorage.AddCounter(name, val)
 		default:
 			{
-				http.Error(w, "Unknown metric Type", http.StatusNotImplemented)
+				http.Error(w, unkMTMessage, http.StatusNotImplemented)
 				return
 			}
 		}
@@ -325,7 +333,7 @@ func GetJSONMetricHandlerFunc(
 		metric, ok := r.Context().Value(singleMetricContextKey{}).(*model.Metrics)
 		if !ok {
 			log.Printf("Error: [getJSONMetricHandlerFunc] Metric info not found in context")
-			http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+			http.Error(w, missingContextMessage, http.StatusInternalServerError)
 			return
 		}
 
@@ -355,7 +363,7 @@ func GetJSONMetricHandlerFunc(
 
 		default:
 			log.Printf("Error: [getJSONMetricHandlerFunc] Unknown metric type")
-			http.Error(w, "Unknown metric type", http.StatusInternalServerError)
+			http.Error(w, unkMTMessage, http.StatusInternalServerError)
 			return
 		}
 
@@ -371,7 +379,7 @@ func GetJSONMetricHandlerFunc(
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(keyCT, keyValueJSON)
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
 		err := encoder.Encode(retval)
@@ -401,7 +409,11 @@ func gzipMiddleware(next http.Handler) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			defer gz.Close()
+			defer func() {
+				if err := gz.Close(); err != nil {
+					log.Errorf("error occured when closing gzip: %v", err)
+				}
+			}()
 		} else {
 			buf, err = io.ReadAll(r.Body)
 
@@ -419,13 +431,12 @@ func gzipMiddleware(next http.Handler) http.Handler {
 func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			content, ok := r.Context().Value(bodyContextKey{}).([]byte)
 			if !ok {
 				log.Printf(
-					"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+					missingContextMessageLong,
 				)
-				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				http.Error(w, missingContextMessage, http.StatusInternalServerError)
 				return
 			}
 			var nextData []byte
@@ -434,16 +445,14 @@ func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {
 				nextData, err = signer.DecriptMessage(key, content)
 				if err != nil {
 					log.Printf(
-						"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+						missingContextMessageLong,
 					)
-					http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+					http.Error(w, missingContextMessage, http.StatusInternalServerError)
 					return
 				}
-
 			} else {
 				nextData = content
 			}
-
 			ctx := context.WithValue(r.Context(), bodyContextKey{}, nextData)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -454,14 +463,13 @@ func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {
 func MiddlewareGeneratorSingleJSON(key string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			var reader io.Reader
 			content, ok := r.Context().Value(bodyContextKey{}).([]byte)
 			if !ok {
 				log.Printf(
-					"Error: [updateJSONMetricHandlerFunc] Metric info not found in context status-'500'",
+					missingContextMessageLong,
 				)
-				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				http.Error(w, missingContextMessage, http.StatusInternalServerError)
 				return
 			}
 			reader = bytes.NewReader(content)
@@ -533,12 +541,16 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 				log.Printf(
 					"Error: [MiddlewareGeneratorMultipleJSON] Metric info not found in context status-'500'",
 				)
-				http.Error(w, "Metric info not found in context", http.StatusInternalServerError)
+				http.Error(w, missingContextMessage, http.StatusInternalServerError)
 				return
 			}
 			reader = bytes.NewReader(content)
 			log.Println("Incoming request Updates, before decoder")
-			defer r.Body.Close()
+			defer func() {
+				if err := r.Body.Close(); err != nil {
+					log.Printf("error on closing req body: %v", err)
+				}
+			}()
 			var metrics []*model.Metrics
 			bodyBytes, _ := io.ReadAll(reader)
 			err := json.Unmarshal(bodyBytes, &metrics)
@@ -608,7 +620,7 @@ func GetMetricHandlerFunc(
 		default:
 
 			w.WriteHeader(http.StatusNotImplemented)
-			_, err := w.Write([]byte("Unknown metric type"))
+			_, err := w.Write([]byte(unkMTMessage))
 			if err != nil {
 				log.Printf("GetMetricHandlerFunc unknown type writer.Write error:%v", err)
 			}
