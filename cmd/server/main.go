@@ -21,9 +21,11 @@ import (
 )
 
 var (
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
+	buildVersion     = "N/A"
+	buildDate        = "N/A"
+	buildCommit      = "N/A"
+	fileReadTimeout  = 30 * time.Second
+	fileWriteTimeout = 30 * time.Second
 )
 
 func main() {
@@ -80,8 +82,8 @@ func main() {
 	r := handlers.NewRouter(storage, sqlDBStorage, *cfg)
 	srv := &http.Server{
 		Addr:         cfg.ServerAddress,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  fileReadTimeout,
+		WriteTimeout: fileWriteTimeout,
 		Handler:      r,
 	}
 	idleConnsClosed := make(chan struct{})

@@ -1,4 +1,4 @@
-// Package filestorage реализует механизм хранения метрик в текстовом файле
+// Package filestorage реализует механизм хранения метрик в текстовом файле.
 package filestorage
 
 import (
@@ -44,8 +44,8 @@ func (f *FileStorage) Save(ctx context.Context, ms *memstorage.MemStorage) error
 
 	err = writer.encoder.Encode(ms)
 	if err != nil {
-		log.Printf("Error FileStorage Save metrics to file '%s' Encode error: %v", f.StoreFile, err)
-		return err
+		log.Printf("writer.encoder.Encode from file: %v, error: %v", f.StoreFile, err)
+		return fmt.Errorf("error encode from file '%s' error: %w", f.StoreFile, err)
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (f *FileStorage) Restore(ctx context.Context) (*memstorage.MemStorage, erro
 	reader, err := newReader(f.StoreFile)
 	if err != nil {
 		log.Printf("Restore metrics from file '%s' reader error: %v", f.StoreFile, err)
-		return nil, fmt.Errorf("Restore metrics from file '%s' reader error: %w", f.StoreFile, err)
+		return nil, fmt.Errorf("error restore metrics from file '%s' reader error: %w", f.StoreFile, err)
 	}
 
 	checkFile, err := os.Stat(f.StoreFile)
@@ -94,7 +94,7 @@ type producer struct {
 func newWriter(filename string) (*producer, error) {
 	file, err := os.Create(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("newWriter error:%w", err)
 	}
 
 	return &producer{
@@ -104,7 +104,7 @@ func newWriter(filename string) (*producer, error) {
 }
 
 func (p *producer) Close() error {
-	return p.file.Close()
+	return fmt.Errorf("error on close :%w", p.file.Close())
 }
 
 type consumer struct {
@@ -113,9 +113,9 @@ type consumer struct {
 }
 
 func newReader(filename string) (*consumer, error) {
-	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0o777)
+	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error on os.OpenFile :%w", err)
 	}
 
 	return &consumer{
@@ -126,7 +126,7 @@ func newReader(filename string) (*consumer, error) {
 
 func (r *consumer) readStorage() (*memstorage.MemStorage, error) {
 	if !r.scanner.Scan() {
-		return nil, r.scanner.Err()
+		return nil, fmt.Errorf("error r.scanner.Scan() :%w", r.scanner.Err())
 	}
 
 	data := r.scanner.Bytes()
@@ -134,7 +134,7 @@ func (r *consumer) readStorage() (*memstorage.MemStorage, error) {
 	ms := memstorage.MemStorage{}
 	err := json.Unmarshal(data, &ms)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal error:%w", r.scanner.Err())
 	}
 	ms.Mux = &sync.RWMutex{}
 	return &ms, nil

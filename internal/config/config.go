@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -70,18 +71,18 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	if err = json.Unmarshal(data, &cfg); err != nil {
-		return err
+		return fmt.Errorf("json.unmarshal error: %w", err)
 	}
 	c.ServerAddress = cfg.ServerAddress
 	c.StoreInterval, err = time.ParseDuration(cfg.StoreInterval)
 	if err != nil {
-		return err
+		return fmt.Errorf("time.ParseDuration error: %w", err)
 	}
 	c.StoreFile = cfg.StoreFile
 	c.Restore = cfg.Restore
 	c.ConnectionString = cfg.ConnectionString
 	c.CryptoKeyFile = cfg.CryptoKeyFile
-	return err
+	return nil
 }
 
 func (c *Config) parseConfigFile() error {
@@ -90,18 +91,23 @@ func (c *Config) parseConfigFile() error {
 	}
 	josnFile, err := os.Open(c.confFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("os.Open error: %w", err)
 	}
-	defer josnFile.Close()
+	defer func() {
+		err := josnFile.Close()
+		if err != nil {
+			log.Fatalf("error josnFile.Close : %v", err)
+		}
+	}()
 
 	r, err := io.ReadAll(josnFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("io.ReadAll(josnFile) error: %w", err)
 	}
 	var cfg Config
 	err = json.Unmarshal(r, &cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Unmarshal config error: %w", err)
 	}
 
 	if c.ServerAddress == "" {
@@ -133,19 +139,25 @@ func (c *Config) getCryptoKey() error {
 		return fmt.Errorf("error reading agent config: %w", err)
 	}
 	filename := c.CryptoKeyFile
-	//1. Read the private key information and put it in the data variable
+	// 1. Read the private key information and put it in the data variable
 	file, err := os.Open(filename)
 	if err != nil {
-		return err
+		return fmt.Errorf("os.Open(%s) error: %w", filename, err)
 	}
-	stat, _ := file.Stat() //Get file attribute information
+	stat, err := file.Stat() // get file attribute information
+	if err != nil {
+		return fmt.Errorf("read file '%s' attributes error: %w", filename, err)
+	}
 	data := make([]byte, stat.Size())
 	_, err = file.Read(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("os.Read error: %w", err)
 	}
-	file.Close()
-	//2. Decode the resulting string pem
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("file close error: %w", err)
+	}
+	// 2. Decode the resulting string pem
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return errors.New("error reading key bytes")

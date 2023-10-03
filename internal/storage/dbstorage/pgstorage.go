@@ -68,8 +68,8 @@ func (pgs *PostgreSQLStorage) Ping(ctx context.Context) error {
 		return fmt.Errorf("cannot ping database because connection is nil")
 	}
 	if err := pgs.connection.Ping(ctx); err != nil {
-		log.Printf("Cannot ping database because %s", err)
-		return fmt.Errorf("cannot ping database because %w", err)
+		log.Printf("failed to ping database because %s", err)
+		return fmt.Errorf("ping failed: %w", err)
 	}
 	return nil
 }
@@ -78,7 +78,7 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 	tx, err := pgs.connection.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		log.Printf("Error: [PostgreSQLStorage] failed connection transaction err: %v", err)
-		return err
+		return fmt.Errorf("[PostgreSQLStorage] save func failed to BeginTx, error: %w", err)
 	}
 
 	defer func() {
@@ -87,7 +87,6 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 			if errtx != nil {
 				log.Printf("Error: [PostgreSQLStorage] failed to Rollback transaction err: %v", err)
 			}
-
 		}
 	}()
 
@@ -124,14 +123,16 @@ func (pgs *PostgreSQLStorage) Save(ctx context.Context, ms *memstorage.MemStorag
 	return nil
 }
 
+var restoreTimeout = time.Second * 25
+
 func (pgs *PostgreSQLStorage) Restore(ctx context.Context) (*memstorage.MemStorage, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*25)
+	ctx, cancel := context.WithTimeout(ctx, restoreTimeout)
 	defer cancel()
 	counters := make(map[string]int64)
 	gauges := make(map[string]float64)
 	rows, err := pgs.connection.Query(ctx, GetMetricsQuery)
 	if err != nil {
-		log.Printf("Error trying to get all metircs, query: '%s' error: %v", SetMetricQuery, err)
+		log.Printf("failed to get all metircs, query: '%s' error: %v", SetMetricQuery, err)
 		return nil, fmt.Errorf("error trying to get all metircs, query: '%s' error: %w", SetMetricQuery, err)
 	}
 	for rows.Next() {
@@ -155,7 +156,7 @@ func (pgs *PostgreSQLStorage) Restore(ctx context.Context) (*memstorage.MemStora
 	err = rows.Err()
 	if err != nil {
 		log.Printf("Error trying to get all metircs, query: '%s' error: %v", SetMetricQuery, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get all metircs, query: '%s' error: %w", SetMetricQuery, err)
 	}
 	return &memstorage.MemStorage{
 			Counters: counters,

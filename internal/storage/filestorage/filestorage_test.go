@@ -59,8 +59,14 @@ func TestFileStorage_Restore(t *testing.T) {
 				log.Fatal(err)
 			}
 			defer func() {
-				os.Remove(f.Name())
-				f.Close()
+				err := os.Remove(f.Name())
+				if err != nil {
+					t.Errorf("os.Remove(f.Name()) error = %v", err)
+				}
+				err = f.Close()
+				if err != nil {
+					t.Errorf("f.Close() error = %v", err)
+				}
 			}()
 
 			if tt.fields.Content != "" {
@@ -98,7 +104,13 @@ func Test_producer_Close(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.Remove(f.Name())
+	defer func() {
+		err := os.Remove(f.Name())
+		if err != nil {
+			log.Fatal("Test_producer_Close:os.Remover error: %w", err)
+		}
+	}()
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -122,7 +134,6 @@ func Test_producer_Close(t *testing.T) {
 			if err := p.Close(); (err != nil) != tt.wantErr {
 				t.Errorf("producer.Close() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
 		})
 	}
 }
@@ -152,8 +163,12 @@ func Test_newReader(t *testing.T) {
 				log.Fatal(err)
 			}
 			defer func() {
-				os.Remove(f.Name())
-				f.Close()
+				if err := os.Remove(f.Name()); err != nil {
+					log.Fatal("remove file error:%w", err)
+				}
+				if err := f.Close(); err != nil {
+					log.Fatal("close file error:%w", err)
+				}
 			}()
 			got, err := newReader(f.Name())
 			if (err != nil) != tt.wantErr {
