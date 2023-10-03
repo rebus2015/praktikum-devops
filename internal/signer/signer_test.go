@@ -189,7 +189,7 @@ func TestDecryptMessage(t *testing.T) {
 	assert.NoError(t, err, "Failed to encrypt test message")
 
 	// Decrypt the encrypted message
-	decrypted, err := DecriptMessage(key, encrypted)
+	decrypted, err := DecryptMessage(key, encrypted)
 
 	// Assertions
 	assert.NoError(t, err, "DecryptMessage should not return an error")
