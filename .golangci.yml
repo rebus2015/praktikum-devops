@@ -422,7 +422,7 @@ issues:
   exclude-rules:
   - path: "_test\\.go"
     text: "fieldalignment: struct with \\d+ pointer bytes could be \\d+"
-  fix: false
+  fix: true
   max-issues-per-linter: 0
   max-same-issues: 0
 
