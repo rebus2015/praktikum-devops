@@ -62,7 +62,7 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	}
 	cfg := config.Config{StoreFile: "", ConnectionString: ""}
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &cfg))
+		memstorage.NewStorage(), nil)
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -119,7 +119,7 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	}
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
+		memstorage.NewStorage(), nil)
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -170,14 +170,14 @@ func TestGetMetricHandlerFunc(t *testing.T) {
 			want: args{
 				"gauge",
 				"cnt1",
-				"cauge with name 'cnt1' is not found",
+				"GetGauge error: cauge with name 'cnt1' is not found",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
+			memstorage.NewStorage(), nil)
 		dbStorage := &sqlStorageMock{}
 		for _, c := range tt.counters {
 			_, err := metricStorage.AddCounter(c.Name, c.Val)
@@ -323,7 +323,7 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	}
 
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-		memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
+		memstorage.NewStorage(), nil)
 	dbStorage := &sqlStorageMock{}
 	for _, tt := range tests {
 		// запускаем каждый тест
@@ -656,7 +656,7 @@ func TestUpdateMetricHandlerFunc(t *testing.T) {
 
 	for _, tt := range tests {
 		var metricStorage storage.Repository = storage.NewRepositoryWrapper(
-			memstorage.NewStorage(), filestorage.NewStorage(context.Background(), &config.Config{}))
+			memstorage.NewStorage(), nil)
 		dbStorage := &sqlStorageMock{}
 
 		// запускаем каждый тест
