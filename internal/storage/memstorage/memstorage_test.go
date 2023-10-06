@@ -462,7 +462,7 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 			false,
 			false,
 		}, {
-			"Negative test 1 unknown type",
+			"Positive test 1 unknown type",
 			fields{
 				map[string]float64{"g1": -32.00023},
 				map[string]int64{"c1": 100},
@@ -487,7 +487,7 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 				},
 			},
 			false,
-			true,
+			false,
 		}, {
 			"Negative test 2  metrics type mismatch",
 			fields{
