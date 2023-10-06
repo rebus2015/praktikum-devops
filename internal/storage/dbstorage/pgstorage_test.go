@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pashagolub/pgxmock/v3"
+	"github.com/pashagolub/pgxmock/v2"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rebus2015/praktikum-devops/internal/storage/memstorage"
@@ -26,7 +26,7 @@ func TestPostgreSQLStorage_Ping(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	mock.ExpectPing().WillDelayFor(time.Second * 3)
+	mock.ExpectPing()
 	pgs := &PostgreSQLStorage{
 		connection: mock,
 		Sync:       false,
@@ -50,7 +50,7 @@ func Test_restoreDB(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*50)
 	defer cancel()
 
-	mock.ExpectPing().WillDelayFor(time.Second * 3)
+	mock.ExpectPing()
 	mock.ExpectExec(regexp.QuoteMeta(restoreDBscript)).WillReturnResult(pgxmock.NewResult("", 0))
 
 	pgs := &PostgreSQLStorage{
@@ -186,9 +186,12 @@ func TestPostgreSQLStorage_Close(t *testing.T) {
 		connection: mock,
 		Sync:       false,
 	}
+	mock.AsConn().ExpectClose()
 	pgs.Close()
 
-	assert.Error(t, pgs.connection.Ping(context.Background()))
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
 
 func TestPostgreSQLStorage_SaveTicker(t *testing.T) {
