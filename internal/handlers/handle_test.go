@@ -27,10 +27,10 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 	}
 	tests := []struct {
 		name        string
-		args        want
 		request     string
 		method      string
 		contentType string
+		args        want
 	}{
 		{
 			name: "positive test #1",
@@ -84,10 +84,10 @@ func Test_UpdateGaugeHandlerFunc(t *testing.T) {
 	}
 	tests := []struct {
 		name        string
-		args        want
 		request     string
 		method      string
 		contentType string
+		args        want
 	}{
 		{
 			name: "positive test #1",
@@ -142,12 +142,12 @@ func TestGetMetricHandlerFunc(t *testing.T) {
 		val   string
 	}
 	tests := []struct {
+		want     args
 		name     string
+		method   string
 		counters []memstorage.MetricStr
 		gauges   []memstorage.MetricStr
-		method   string
 		wantcode int
-		want     args
 	}{
 		{
 			name:     "Positive test #1",
@@ -251,8 +251,8 @@ func testRequestJSONstring(t *testing.T, ts *httptest.Server, method, path strin
 
 func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	type wantArgs struct {
-		code    int
 		data    string
+		code    int
 		wantErr bool
 	}
 	type requestArgs struct {
@@ -263,8 +263,8 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		want    wantArgs
 		request requestArgs
+		want    wantArgs
 	}{
 		{
 			name: "positive add gauge test #1",
@@ -345,8 +345,8 @@ func Test_UpdateJSONMetricHandlerFunc(t *testing.T) {
 
 func Test_UpdateJSONMultipleMetricHandlerFunc(t *testing.T) {
 	type wantArgs struct {
-		code    int
 		data    string
+		code    int
 		wantErr bool
 	}
 	type requestArgs struct {
@@ -357,8 +357,8 @@ func Test_UpdateJSONMultipleMetricHandlerFunc(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		want    wantArgs
 		request requestArgs
+		want    wantArgs
 	}{
 		{
 			name: "positive add gauge test #1",
@@ -544,11 +544,11 @@ func TestGetDBConnState(t *testing.T) {
 func Test_getAllHandler(t *testing.T) {
 	tests := []struct {
 		name     string
+		method   string
+		path     string
 		counters []memstorage.MetricStr
 		gauges   []memstorage.MetricStr
-		method   string
 		wantcode int
-		path     string
 	}{
 		{
 			name:     "Positive test #1",
@@ -607,9 +607,9 @@ func TestUpdateMetricHandlerFunc(t *testing.T) {
 	tests := []struct {
 		name     string
 		method   string
-		wantcode int
 		path     string
 		want     args
+		wantcode int
 	}{
 		{
 			name:     "Positive test #1",

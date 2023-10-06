@@ -16,14 +16,14 @@ type Result struct {
 
 type Args struct {
 	Client  *http.Client
-	Metrics []model.Metrics
 	Config  *Config
+	Metrics []model.Metrics
 }
 
 type Job struct {
-	Descriptor int
 	ExecFn     ExecutionFn
 	Args       Args
+	Descriptor int
 }
 
 func (j Job) execute(ctx context.Context) Result {

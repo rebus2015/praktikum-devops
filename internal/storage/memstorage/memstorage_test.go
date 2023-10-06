@@ -12,24 +12,24 @@ import (
 func TestGMetric_String(t *testing.T) {
 	tests := []struct {
 		name string
-		g    GMetric
 		want string
+		g    GMetric
 	}{
 		{
-			"GMetric to string int",
-			GMetric{
+			name: "GMetric to string int",
+			g: GMetric{
 				"Gauge1",
 				424,
 			},
-			"424.000000",
+			want: "424.000000",
 		},
 		{
-			"GMetric to string negative float",
-			GMetric{
+			name: "GMetric to string negative float",
+			g: GMetric{
 				"Gauge2",
 				-424.000234,
 			},
-			"-424.000234",
+			want: "-424.000234",
 		},
 	}
 	for _, tt := range tests {
@@ -46,24 +46,24 @@ func TestGMetric_String(t *testing.T) {
 func TestCMetric_String(t *testing.T) {
 	tests := []struct {
 		name string
-		c    CMetric
 		want string
+		c    CMetric
 	}{
 		{
-			"CMetric to string int",
-			CMetric{
+			name: "CMetric to string int",
+			c: CMetric{
 				"Counter1",
 				424,
 			},
-			"424",
+			want: "424",
 		},
 		{
-			"GMetric to string negative float",
-			CMetric{
+			name: "GMetric to string negative float",
+			c: CMetric{
 				"Counter2",
 				-333,
 			},
-			"-333",
+			want: "-333",
 		},
 	}
 	for _, tt := range tests {
@@ -83,9 +83,9 @@ func TestGMetric_TryParse(t *testing.T) {
 		val  string
 	}
 	tests := []struct {
-		name string
-		g    data
 		want *GMetric
+		g    data
+		name string
 	}{
 		{
 			name: "test1 gauge",
@@ -126,9 +126,9 @@ func TestCMetric_TryParse(t *testing.T) {
 		val  string
 	}
 	tests := []struct {
+		want *CMetric
 		name string
 		c    data
-		want *CMetric
 	}{
 		{
 			name: "test1",
@@ -260,8 +260,8 @@ func TestMemStorage_AddCounterInt(t *testing.T) {
 		Counters map[string]int64
 	}
 	type args struct {
-		name   string
 		val    *int64
+		name   string
 		intval int64
 	}
 	tests := []struct {

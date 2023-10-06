@@ -16,13 +16,13 @@ import (
 
 func TestGetConfig(t *testing.T) {
 	tests := []struct {
-		name    string
 		want    *Config
+		name    string
 		wantErr bool
 	}{
 		{
-			"test 1",
-			&Config{
+			name: "test 1",
+			want: &Config{
 				ServerAddress:    "127.0.0.1:8080",
 				StoreInterval:    time.Second * 30,
 				StoreFile:        "",
@@ -30,7 +30,7 @@ func TestGetConfig(t *testing.T) {
 				Key:              "",
 				ConnectionString: "",
 			},
-			false,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -47,23 +47,23 @@ func TestGetConfig(t *testing.T) {
 
 func TestConfig_UnmarshalJSON(t *testing.T) {
 	type fields struct {
+		CryptoKey        *rsa.PrivateKey
 		ServerAddress    string
-		StoreInterval    time.Duration
 		StoreFile        string
-		Restore          bool
 		Key              string
 		ConnectionString string
 		CryptoKeyFile    string
 		confFile         string
-		CryptoKey        *rsa.PrivateKey
+		StoreInterval    time.Duration
+		Restore          bool
 	}
 	type args struct {
 		data []byte
 	}
 	tests := []struct {
+		args    args
 		name    string
 		fields  fields
-		args    args
 		wantErr bool
 	}{
 		{
@@ -148,21 +148,21 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 
 func TestConfig_parseConfigFile(t *testing.T) {
 	type fields struct {
+		CryptoKey        *rsa.PrivateKey
 		ServerAddress    string
-		StoreInterval    time.Duration
 		StoreFile        string
-		Restore          bool
 		Key              string
 		ConnectionString string
 		CryptoKeyFile    string
 		confFile         string
-		CryptoKey        *rsa.PrivateKey
+		StoreInterval    time.Duration
+		Restore          bool
 	}
 	tests := []struct {
 		name    string
+		data    string
 		f       fields
 		wantf   fields
-		data    string
 		wantErr bool
 	}{
 		{
@@ -289,14 +289,14 @@ kVpKJJ4IyDiPV8+6A3VAlxvSpjVusaR7Jq8VDiHBKEf5jQ==
 
 func TestConfig_getCryptoKey(t *testing.T) {
 	type fields struct {
+		CryptoKey        *rsa.PrivateKey
 		ServerAddress    string
-		StoreInterval    time.Duration
 		StoreFile        string
-		Restore          bool
 		Key              string
 		ConnectionString string
 		CryptoKeyFile    string
-		CryptoKey        *rsa.PrivateKey
+		StoreInterval    time.Duration
+		Restore          bool
 	}
 	tests := []struct {
 		name    string

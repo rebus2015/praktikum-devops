@@ -23,6 +23,7 @@ var (
 )
 
 type Config struct {
+	CryptoKey      *rsa.PublicKey
 	ServerAddress  string        `env:"ADDRESS" json:"address"`                 // Адрес сервера
 	CryptoKeyFile  string        `env:"CRYPTO_KEY" json:"crypto_key,omitempty"` // Путь к файлу с открытым ключом
 	confFile       string        `env:"CONFIG" json:"-"`
@@ -30,7 +31,7 @@ type Config struct {
 	ReportInterval time.Duration `env:"PUSH_TIMEOUT" json:"report_interval"` // Интервал отправки метрик на сервер
 	PollInterval   time.Duration `env:"POLL_INTERVAL" json:"poll_interval"`  // Интервал сбора метрик
 	RateLimit      int           `env:"RATE_LIMIT" json:"-"`                 // Количество одновременных запросов
-	CryptoKey      *rsa.PublicKey
+
 }
 
 func GetConfig() (*Config, error) {

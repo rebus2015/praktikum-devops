@@ -20,15 +20,16 @@ import (
 
 // Config хранит получныые занчеия конфигурации.
 type Config struct {
-	ServerAddress    string        `env:"ADDRESS" json:"address"`
-	StoreInterval    time.Duration `env:"STORE_INTERVAL" json:"store_interval"` // 0 - синхронная запись
-	StoreFile        string        `env:"STORE_FILE" json:"store_file"`         // пустое значние отключает запись на диск
-	Restore          bool          `env:"RESTORE" json:"restore"`               // загружать начальные значениея из файла
-	Key              string        `env:"KEY"`                                  // Ключ для создания подписи сообщения
-	ConnectionString string        `env:"DATABASE_DSN" json:"database_dsn"`     // Cтрока подключения к БД
-	CryptoKeyFile    string        `env:"CRYPTO_KEY" json:"crypto_key"`         // путь к файлу с приватным ключом
-	confFile         string        `env:"CONFIG" json:"-"`
 	CryptoKey        *rsa.PrivateKey
+	ServerAddress    string        `env:"ADDRESS" json:"address"`
+	StoreFile        string        `env:"STORE_FILE" json:"store_file"`     // пустое значние отключает запись на диск
+	Key              string        `env:"KEY"`                              // Ключ для создания подписи сообщения
+	ConnectionString string        `env:"DATABASE_DSN" json:"database_dsn"` // Cтрока подключения к БД
+	CryptoKeyFile    string        `env:"CRYPTO_KEY" json:"crypto_key"`     // путь к файлу с приватным ключом
+	confFile         string        `env:"CONFIG" json:"-"`
+	StoreInterval    time.Duration `env:"STORE_INTERVAL" json:"store_interval"` // 0 - синхронная запись
+	Restore          bool          `env:"RESTORE" json:"restore"`               // загружать начальные значениея из файла
+
 }
 
 // GetConfig считывает значения параметров запуска и возвращает структуру.
@@ -65,9 +66,9 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 		ServerAddress    string `json:"address"`
 		StoreInterval    string `json:"store_interval"`
 		StoreFile        string `json:"store_file"`
-		Restore          bool   `json:"restore"`
 		ConnectionString string `json:"database_dsn"`
 		CryptoKeyFile    string `json:"crypto_key"`
+		Restore          bool   `json:"restore"`
 	}
 
 	if err = json.Unmarshal(data, &cfg); err != nil {
