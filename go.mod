@@ -1,12 +1,12 @@
 module github.com/rebus2015/praktikum-devops
 
-go 1.21
+go 1.20
 
-toolchain go1.21.1
+// toolchain go1.21.1
 
 require (
 	github.com/jackc/pgx/v5 v5.4.3
-	github.com/pashagolub/pgxmock/v3 v3.0.0
+	github.com/pashagolub/pgxmock/v2 v2.12.0
 	github.com/shirou/gopsutil/v3 v3.23.8
 	github.com/stretchr/testify v1.8.4
 )
@@ -17,8 +17,10 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20230326075908-cb1d2100619a // indirect
 	github.com/power-devops/perfstat v0.0.0-20221212215047-62379fc7944b // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
