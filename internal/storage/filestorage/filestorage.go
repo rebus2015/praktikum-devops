@@ -138,7 +138,7 @@ func (r *consumer) readStorage() (*memstorage.MemStorage, error) {
 	ms := memstorage.MemStorage{}
 	err := json.Unmarshal(data, &ms)
 	if err != nil {
-		return nil, fmt.Errorf("json.Unmarshal error:%w", r.scanner.Err())
+		return nil, fmt.Errorf("json.Unmarshal error:%w", err)
 	}
 	ms.Mux = &sync.RWMutex{}
 	return &ms, nil
