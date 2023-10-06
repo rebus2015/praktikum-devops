@@ -29,10 +29,10 @@ func worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan Job, errCh chan
 }
 
 type WorkerPool struct {
-	workersCount int
-	jobs         chan Job
-	errCh        chan Result
 	Done         chan struct{}
+	errCh        chan Result
+	jobs         chan Job
+	workersCount int
 }
 
 func New(wcount int) WorkerPool {

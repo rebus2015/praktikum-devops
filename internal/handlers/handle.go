@@ -442,7 +442,7 @@ func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {
 			var nextData []byte
 			var err error
 			if key != nil {
-				nextData, err = signer.DecriptMessage(key, content)
+				nextData, err = signer.DecryptMessage(key, content)
 				if err != nil {
 					log.Printf(
 						missingContextMessageLong,

@@ -237,19 +237,19 @@ func TestNewStorage(t *testing.T) {
 		sync             bool
 	}
 	tests := []struct {
+		want    *PostgreSQLStorage
 		name    string
 		args    args
-		want    *PostgreSQLStorage
 		wantErr bool
 	}{
 		{
-			"negative test 1",
-			args{
+			name: "negative test 1",
+			args: args{
 				connectionString: "",
 				sync:             false,
 			},
-			&PostgreSQLStorage{},
-			true,
+			want:    &PostgreSQLStorage{},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

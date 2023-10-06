@@ -21,34 +21,34 @@ func TestFileStorage_Restore(t *testing.T) {
 		Sync      bool
 	}
 	tests := []struct {
+		want    *memstorage.MemStorage
 		name    string
 		fields  fields
-		want    *memstorage.MemStorage
 		wantErr bool
 	}{
 		{
-			"Empty file test",
-			fields{
+			name: "Empty file test",
+			fields: fields{
 				StoreFile: "emptyStorage.txt",
 				Content:   "",
 				Sync:      false,
 			},
-			&memstorage.MemStorage{
+			want: &memstorage.MemStorage{
 				Gauges:   map[string]float64{},
 				Counters: map[string]int64{},
 				Mux:      &sync.RWMutex{},
 			},
-			false,
+			wantErr: false,
 		},
 		{
-			"Wrong format file test",
-			fields{
+			name: "Bad format file test",
+			fields: fields{
 				StoreFile: "badStorage.txt",
 				Content:   "Some uunstructured text",
 				Sync:      false,
 			},
-			nil,
-			true,
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -112,8 +112,8 @@ func Test_producer_Close(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name    string
 		fields  fields
+		name    string
 		wantErr bool
 	}{
 		{
@@ -144,9 +144,9 @@ func Test_newReader(t *testing.T) {
 	}
 
 	tests := []struct {
+		want    *consumer
 		name    string
 		args    args
-		want    *consumer
 		wantErr bool
 	}{
 		{
