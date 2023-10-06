@@ -104,7 +104,11 @@ func newWriter(filename string) (*producer, error) {
 }
 
 func (p *producer) Close() error {
-	return fmt.Errorf("error on close :%w", p.file.Close())
+	err := p.file.Close()
+	if err != nil {
+		return fmt.Errorf("error on close :%w", err)
+	}
+	return nil
 }
 
 type consumer struct {
