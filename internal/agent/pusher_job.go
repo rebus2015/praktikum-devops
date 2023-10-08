@@ -2,8 +2,8 @@ package agent
 
 import (
 	"context"
-	"net/http"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 )
 
@@ -15,7 +15,7 @@ type Result struct {
 }
 
 type Args struct {
-	Client  *http.Client
+	Client  *retryablehttp.Client
 	Config  *Config
 	Metrics []model.Metrics
 }

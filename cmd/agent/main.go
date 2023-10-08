@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/go-deeper/chunks"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
 
@@ -240,7 +241,7 @@ func encrypt(d []byte, pubKey *rsa.PublicKey) ([]byte, error) {
 	return encripted, nil
 }
 
-func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *http.Request {
+func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *retryablehttp.Request {
 	queryurl := url.URL{
 		Scheme: "http",
 		Host:   cfg.ServerAddress,
@@ -263,7 +264,7 @@ func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *h
 		buf = bytes.NewBuffer(d)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), buf)
+	req, err := retryablehttp.NewRequestWithContext(ctx, http.MethodPost, queryurl.String(), buf)
 	if err != nil {
 		log.Printf("Create Request failed! with error: %v\n", err)
 		log.Panicf("Create Request failed! with error: %v\n", err)
@@ -330,7 +331,9 @@ func valuer(m []*model.Metrics) []model.Metrics {
 }
 
 func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) error {
-	client := &http.Client{}
+	client := retryablehttp.NewClient()
+	client.RetryMax = 3
+	client.RetryWaitMax = time.Duration(5 * time.Second)
 	metricList, err := m.gatherJSONMetrics(cfg.Key)
 	if err != nil {
 		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
