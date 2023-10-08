@@ -486,8 +486,8 @@ func TestMemStorage_AddMetrics(t *testing.T) {
 					},
 				},
 			},
-			false,
-			false,
+			true,
+			true,
 		}, {
 			"Negative test 2  metrics type mismatch",
 			fields{
