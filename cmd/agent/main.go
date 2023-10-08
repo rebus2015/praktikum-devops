@@ -421,7 +421,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sigChan := make(chan os.Signal, 1)
-	errCh := make(chan error) // создаём канал, из которого будем ждать ошибку
+	errCh := make(chan error) // создаём канал, из которого будем ожидать ошибку
 
 	signal.Notify(sigChan,
 		syscall.SIGINT,
