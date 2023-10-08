@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	defReportInterval = time.Second * 10
-	defPollInterval   = time.Second * 6
+	defReportInterval = time.Second * 5
+	defPollInterval   = time.Second * 3
 )
 
 type Config struct {

@@ -137,7 +137,6 @@ func (m *MemStorage) IncCounter(name string, val interface{}) (int64, error) {
 
 func (m *MemStorage) GetCounter(name string) (int64, error) {
 	log.Printf("MemStorage GetCounter for '%v'", name)
-	log.Println("MemStorage GetCounter Lock")
 	m.Mux.RLock()
 	defer m.Mux.RUnlock()
 	log.Println("MemStorage GetCounter check Counters map")
