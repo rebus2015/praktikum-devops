@@ -35,7 +35,10 @@ func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, er
 			}
 		}
 	}
-	return retval, fmt.Errorf("AddGauge error:%w", err)
+	if err != nil {
+		return 0, fmt.Errorf("AddGauge error:%w", err)
+	}
+	return retval, nil
 }
 
 func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
@@ -48,7 +51,10 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 			}
 		}
 	}
-	return retval, fmt.Errorf("AddCounter error:%w", err)
+	if err != nil {
+		return 0, fmt.Errorf("AddCounter error:%w", err)
+	}
+	return retval, nil
 }
 
 // Func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, error) {
