@@ -210,7 +210,6 @@ func (m *MemStorage) AddMetrics(metrics []*model.Metrics) error {
 		default:
 			{
 				log.Printf("Error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500")
-				return fmt.Errorf("%w", errors.New("error: [updateJSONMetricHandlerFunc] Unknown metric type status - 500"))
 			}
 		}
 	}
