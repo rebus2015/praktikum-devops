@@ -323,7 +323,7 @@ func (m *metricset) updWorkerPs(ctx context.Context, pollInterval time.Duration)
 }
 
 func valuer(m []*model.Metrics) []model.Metrics {
-	var mm = make([]model.Metrics, len(m))
+	var mm = make([]model.Metrics, 0)
 	for _, s := range m {
 		mm = append(mm, *s)
 	}
