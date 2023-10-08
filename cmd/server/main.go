@@ -24,8 +24,8 @@ var (
 	buildVersion     = "N/A"
 	buildDate        = "N/A"
 	buildCommit      = "N/A"
-	fileReadTimeout  = 10 * time.Second
-	fileWriteTimeout = 20 * time.Second
+	fileReadTimeout  = 30 * time.Second
+	fileWriteTimeout = 30 * time.Second
 )
 
 func main() {
