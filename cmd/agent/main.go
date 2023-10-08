@@ -333,7 +333,7 @@ func valuer(m []*model.Metrics) []model.Metrics {
 func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) error {
 	client := retryablehttp.NewClient()
 	client.RetryMax = 3
-	client.RetryWaitMax = time.Duration(5 * time.Second)
+	client.RetryWaitMax = 5 * time.Second
 	metricList, err := m.gatherJSONMetrics(cfg.Key)
 	if err != nil {
 		log.Printf("Error send metricList Statistic: %v,\n Values: %v", err, metricList)
