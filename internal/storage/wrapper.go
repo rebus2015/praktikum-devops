@@ -25,40 +25,65 @@ func NewRepositoryWrapper(mes *memstorage.MemStorage, sec SecondaryStorage) *Rep
 		secondarystorage: sec,
 	}
 }
-
 func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, error) {
 	retval, err := rw.memstorage.SetGauge(name, val)
-	if err != nil {
-		return retval, fmt.Errorf("addGauge error:%w", err)
-	}
-	if rw.secondarystorage != nil {
-		if rw.secondarystorage.SyncMode() {
-			err = rw.secondarystorage.Save(context.Background(), rw.memstorage)
-			if err != nil {
-				log.Printf(fsSaveErrorMsg, err)
-				return 0, fmt.Errorf("fs save error:%w", err)
-			}
-		}
-	}
-	return retval, nil
-}
-
-func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
-	retval, err := rw.memstorage.IncCounter(name, val)
-	if err != nil {
-		return 0, fmt.Errorf("addCounter error:%w", err)
-	}
 	if rw.secondarystorage != nil {
 		if rw.secondarystorage.SyncMode() {
 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
 			if errs != nil {
-				log.Printf(fsSaveErrorMsg, err)
-				return 0, fmt.Errorf("secondarystorage Save error: %w", errs)
+				log.Printf("FileStorage Save error: %v", err)
 			}
 		}
 	}
-	return retval, nil
+	return retval, fmt.Errorf("AddGauge error:%w", err)
 }
+
+func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
+	retval, err := rw.memstorage.IncCounter(name, val)
+	if rw.secondarystorage != nil {
+		if rw.secondarystorage.SyncMode() {
+			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
+			if errs != nil {
+				log.Printf("FileStorage Save error: %v", err)
+			}
+		}
+	}
+	return retval, fmt.Errorf("AddCounter error:%w", err)
+}
+
+// Func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, error) {
+// 	retval, err := rw.memstorage.SetGauge(name, val)
+// 	if err != nil {
+// 		return retval, fmt.Errorf("addGauge error:%w", err)
+// 	}
+// 	if rw.secondarystorage != nil {
+// 		if rw.secondarystorage.SyncMode() {
+// 			err = rw.secondarystorage.Save(context.Background(), rw.memstorage)
+// 			if err != nil {
+// 				log.Printf(fsSaveErrorMsg, err)
+// 				return 0, fmt.Errorf("fs save error:%w", err)
+// 			}
+// 		}
+// 	}
+// 	return retval, nil
+// }.
+
+// Func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
+// 	retval, err := rw.memstorage.IncCounter(name, val)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("addCounter error:%w", err)
+// 	}
+// 	if rw.secondarystorage != nil {
+// 		if rw.secondarystorage.SyncMode() {
+// 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
+// 			if errs != nil {
+// 				log.Printf(fsSaveErrorMsg, err)
+// 				return 0, fmt.Errorf("secondarystorage Save error: %w", errs)
+// 			}
+// 		}
+// 	}
+// 	return retval, nil
+// }.
 
 func (rw *RepositoryWrapper) GetCounter(name string) (int64, error) {
 	result, err := rw.memstorage.GetCounter(name)
