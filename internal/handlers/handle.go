@@ -560,6 +560,7 @@ func MiddlewareGeneratorMultipleJSON(key string) func(next http.Handler) http.Ha
 				return
 			}
 			log.Printf("Incoming request Method: %v, Body: %v", r.RequestURI, string(bodyBytes))
+			log.Printf("Try to update metrics: %v", metrics)
 			for i := range metrics {
 				if key != "" {
 					pass, err := checkMetric(metrics[i], key)
