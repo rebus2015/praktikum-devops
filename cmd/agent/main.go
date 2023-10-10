@@ -19,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-deeper/chunks"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
@@ -229,8 +228,12 @@ func encrypt(d []byte, pubKey *rsa.PublicKey) ([]byte, error) {
 	hash := sha256.New()
 	size := pubKey.Size() - 2*hash.Size() - 2
 	encripted := make([]byte, 0)
-	slices := chunks.Split(d, size)
-	for _, slice := range slices {
+	for i := 0; i < len(d); i += size {
+		end := i + size
+		if end > len(d) {
+			end = len(d)
+		}
+		slice := d[i:end]
 		data, err := rsa.EncryptOAEP(hash, rnd, pubKey, slice, []byte(""))
 		if err != nil {
 			return nil, fmt.Errorf("message encript error: %w", err)
