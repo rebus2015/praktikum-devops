@@ -1,4 +1,4 @@
-// Package config выполняет функцию параметризации сервиса сбора метрик
+// Package config выполняет функцию параметризации сервиса сбора метрик.
 // Поддерживает задание параметров запуска через переменные окружения и параметры командной строки.
 package config
 
@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"time"
 
@@ -21,11 +22,13 @@ import (
 // Config хранит получныые занчеия конфигурации.
 type Config struct {
 	CryptoKey        *rsa.PrivateKey
+	InitialSubnet    *net.IPNet
 	ServerAddress    string        `env:"ADDRESS" json:"address"`
-	StoreFile        string        `env:"STORE_FILE" json:"store_file"`     // пустое значние отключает запись на диск
-	Key              string        `env:"KEY"`                              // Ключ для создания подписи сообщения
-	ConnectionString string        `env:"DATABASE_DSN" json:"database_dsn"` // Cтрока подключения к БД
-	CryptoKeyFile    string        `env:"CRYPTO_KEY" json:"crypto_key"`     // путь к файлу с приватным ключом
+	StoreFile        string        `env:"STORE_FILE" json:"store_file"`         // пустое значние отключает запись на диск
+	Key              string        `env:"KEY"`                                  // Ключ для создания подписи сообщения
+	ConnectionString string        `env:"DATABASE_DSN" json:"database_dsn"`     // Cтрока подключения к БД
+	CryptoKeyFile    string        `env:"CRYPTO_KEY" json:"crypto_key"`         // путь к файлу с приватным ключом
+	TrustedSubnet    string        `env:"TRUSTED_SUBNET" json:"trusted_subnet"` // CIDR доверенной сети
 	confFile         string        `env:"CONFIG" json:"-"`
 	StoreInterval    time.Duration `env:"STORE_INTERVAL" json:"store_interval"` // 0 - синхронная запись
 	Restore          bool          `env:"RESTORE" json:"restore"`               // загружать начальные значениея из файла
@@ -42,6 +45,7 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.StoreFile, "f", "", "Metrics repository file path")
 	flag.BoolVar(&conf.Restore, "r", false, "Restore metric values from file before start")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
+	flag.StringVar(&conf.TrustedSubnet, "t", "", "Trusted subnet CIDR")
 	flag.StringVar(&conf.ConnectionString, "d", "",
 		"Database connection string(PostgreSql)") // postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable
 	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address")
@@ -68,6 +72,7 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 		StoreFile        string `json:"store_file"`
 		ConnectionString string `json:"database_dsn"`
 		CryptoKeyFile    string `json:"crypto_key"`
+		TrustedSubnet    string `json:"trusted_subnet"`
 		Restore          bool   `json:"restore"`
 	}
 
@@ -83,7 +88,30 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 	c.Restore = cfg.Restore
 	c.ConnectionString = cfg.ConnectionString
 	c.CryptoKeyFile = cfg.CryptoKeyFile
+	if c.TrustedSubnet != "" {
+		if c.InitialSubnet, err = c.parseSubnet(); err != nil {
+			return fmt.Errorf("time.Subnet error: %w", err)
+		}
+	}
 	return nil
+}
+
+func (c Config) CheckIP(ipAddr string) bool {
+	if c.InitialSubnet == nil {
+		return true
+	}
+	if ipAddr == "" {
+		return false
+	}
+	return c.InitialSubnet.Contains(net.ParseIP(ipAddr))
+}
+
+func (c *Config) parseSubnet() (*net.IPNet, error) {
+	_, ipv4Net, err := net.ParseCIDR(c.TrustedSubnet)
+	if err != nil {
+		return nil, fmt.Errorf("error when parsing subnet CIDR: %w", err)
+	}
+	return ipv4Net, nil
 }
 
 func (c *Config) parseConfigFile() error {
@@ -128,6 +156,9 @@ func (c *Config) parseConfigFile() error {
 	}
 	if c.CryptoKeyFile == "" {
 		c.CryptoKeyFile = cfg.CryptoKeyFile
+	}
+	if c.TrustedSubnet == "" {
+		c.TrustedSubnet = cfg.TrustedSubnet
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -273,8 +274,24 @@ func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *r
 		log.Panicf("Create Request failed! with error: %v\n", err)
 	}
 	req.Header.Add("Content-type", "application/json")
-
+	req.Header.Add("X-Real-IP", GetLocalIP())
 	return req
+}
+
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }
 
 func sendreq(ctx context.Context, args agent.Args) error {
