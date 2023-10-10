@@ -135,10 +135,6 @@ func (c *Config) getCryptoKey() error {
 	if c.CryptoKeyFile == "" {
 		return nil
 	}
-	// dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if _, err := os.Stat(c.CryptoKeyFile); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("error reading agent config: %w", err)
-	}
 	filename := c.CryptoKeyFile
 	// 1. Read the private key information and put it in the data variable
 	file, err := os.Open(filename)

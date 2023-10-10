@@ -57,40 +57,6 @@ func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, er
 	return retval, nil
 }
 
-// Func (rw *RepositoryWrapper) AddGauge(name string, val interface{}) (float64, error) {
-// 	retval, err := rw.memstorage.SetGauge(name, val)
-// 	if err != nil {
-// 		return retval, fmt.Errorf("addGauge error:%w", err)
-// 	}
-// 	if rw.secondarystorage != nil {
-// 		if rw.secondarystorage.SyncMode() {
-// 			err = rw.secondarystorage.Save(context.Background(), rw.memstorage)
-// 			if err != nil {
-// 				log.Printf(fsSaveErrorMsg, err)
-// 				return 0, fmt.Errorf("fs save error:%w", err)
-// 			}
-// 		}
-// 	}
-// 	return retval, nil
-// }.
-
-// Func (rw *RepositoryWrapper) AddCounter(name string, val interface{}) (int64, error) {
-// 	retval, err := rw.memstorage.IncCounter(name, val)
-// 	if err != nil {
-// 		return 0, fmt.Errorf("addCounter error:%w", err)
-// 	}
-// 	if rw.secondarystorage != nil {
-// 		if rw.secondarystorage.SyncMode() {
-// 			errs := rw.secondarystorage.Save(context.Background(), rw.memstorage)
-// 			if errs != nil {
-// 				log.Printf(fsSaveErrorMsg, err)
-// 				return 0, fmt.Errorf("secondarystorage Save error: %w", errs)
-// 			}
-// 		}
-// 	}
-// 	return retval, nil
-// }.
-
 func (rw *RepositoryWrapper) GetCounter(name string) (int64, error) {
 	result, err := rw.memstorage.GetCounter(name)
 	if err != nil {
