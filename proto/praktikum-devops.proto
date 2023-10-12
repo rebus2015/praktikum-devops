@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/rebus2015/praktikum-devops/proto";
+
+message AddMetricsRequest{
+	bytes metrics = 1;
+} 
+
+message AddMetricsResponse{
+  string error = 1;
+}
+
+service Metrics{
+  rpc AddMetrics(AddMetricsRequest) returns (AddMetricsResponse);
+}              
