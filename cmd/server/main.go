@@ -101,9 +101,6 @@ func main() {
 		close(idleConnsClosed)
 	}()
 	err = srv.ListenAndServe()
-	log.Printf("server started \n address:%v \n database:%v,\n restore interval: %v ",
-		cfg.ServerAddress, cfg.ConnectionString, cfg.StoreInterval)
-
 	if err != nil {
 		log.Printf("server exited with %v", err)
 	}
