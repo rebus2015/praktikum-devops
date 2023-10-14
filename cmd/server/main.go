@@ -113,15 +113,21 @@ func main() {
 		}
 		return nil
 	})
-	grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)
-	g.Go(func() error {
-		if err := grpcSrv.Run(); err != nil {
-			// ошибки запуска Listener
-			log.Printf("Error gRPC server Start: %v", err)
-			return fmt.Errorf("gRPC server Start error: %w", err)
+	if cfg.UseRPC {
+		if cfg.PortRPC == "" {
+			log.Println("Error gRPC server Start: TCP Port is Empty!")
+		} else {
+			grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)
+			g.Go(func() error {
+				if err := grpcSrv.Run(); err != nil {
+					// ошибки запуска Listener
+					log.Printf("Error gRPC server Start: %v", err)
+					return fmt.Errorf("gRPC server Start error: %w", err)
+				}
+				return nil
+			})
 		}
-		return nil
-	})
+	}
 	err = g.Wait()
 	if err != nil {
 		log.Printf("error: server exited with %v", err)
