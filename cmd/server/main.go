@@ -11,9 +11,11 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
+	rpc "github.com/rebus2015/praktikum-devops/internal/rpc/server"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
@@ -92,17 +94,37 @@ func main() {
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
-	go func() {
+	g := errgroup.Group{}
+	g.Go(func() error {
 		<-sigChan
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// ошибки закрытия Listener
 			log.Printf("HTTP server Shutdown: %v", err)
+			return fmt.Errorf("HTTP server Shutdown: %w", err)
 		}
 		close(idleConnsClosed)
-	}()
-	err = srv.ListenAndServe()
+		return nil
+	})
+	g.Go(func() error {
+		if err := srv.ListenAndServe(); err != nil {
+			// ошибки запуска Listener
+			log.Printf("Error HTTP server Start: %v", err)
+			return fmt.Errorf("HTTP server Start: %w", err)
+		}
+		return nil
+	})
+	grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)
+	g.Go(func() error {
+		if err := grpcSrv.Run(); err != nil {
+			// ошибки запуска Listener
+			log.Printf("Error gRPC server Start: %v", err)
+			return fmt.Errorf("gRPC server Start error: %w", err)
+		}
+		return nil
+	})
+	err = g.Wait()
 	if err != nil {
-		log.Printf("server exited with %v", err)
+		log.Printf("error: server exited with %v", err)
 	}
 	<-idleConnsClosed
 	fmt.Println("Server Shutdown gracefully")
