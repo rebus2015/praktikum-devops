@@ -62,9 +62,7 @@ func GetConfig() (*Config, error) {
 	if err = conf.getCryptoKey(); err != nil {
 		return nil, fmt.Errorf("error reading agent config, failed to get CryptoKey: %w", err)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("error reading agent  config(ENV): %w", err)
-	}
+
 	err = conf.parseConfigFile()
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent config(Json): %w", err)
