@@ -162,6 +162,62 @@ func Test_srcString(t *testing.T) {
 			"TotalMemory:gauge:7268679680.000000",
 			false,
 		},
+		{
+			"1st negative",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "gauge",
+					Delta: nil,
+					Value: nil,
+					Hash:  "wjhfwbwih388",
+				},
+			},
+			"",
+			true,
+		},
+		{
+			"2nd positive",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "counter",
+					Delta: ptr(int64(1)),
+					Value: nil,
+					Hash:  "wjhf383wih388",
+				},
+			},
+			"TotalMemory:counter:1",
+			false,
+		},
+		{
+			"2nd negative",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "counter",
+					Delta: nil,
+					Value: nil,
+					Hash:  "wjhf383wih388",
+				},
+			},
+			"",
+			true,
+		},
+		{
+			"3nd negative",
+			args{
+				&model.Metrics{
+					ID:    "TotalMemory",
+					MType: "unk",
+					Delta: nil,
+					Value: nil,
+					Hash:  "wjhf383wih388",
+				},
+			},
+			"",
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

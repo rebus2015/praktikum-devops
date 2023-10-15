@@ -503,12 +503,12 @@ github.com/rebus2015/praktikum-devops/internal/signer/signer.go:60.16,63.3 2 0
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:64.2,64.44 1 1
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:68.54,69.21 1 1
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:70.15,71.25 1 1
-github.com/rebus2015/praktikum-devops/internal/signer/signer.go:71.25,74.4 2 0
+github.com/rebus2015/praktikum-devops/internal/signer/signer.go:71.25,74.4 2 1
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:75.3,75.75 1 1
-github.com/rebus2015/praktikum-devops/internal/signer/signer.go:76.17,77.25 1 0
-github.com/rebus2015/praktikum-devops/internal/signer/signer.go:77.25,80.4 2 0
-github.com/rebus2015/praktikum-devops/internal/signer/signer.go:81.3,81.75 1 0
-github.com/rebus2015/praktikum-devops/internal/signer/signer.go:82.10,84.97 2 0
+github.com/rebus2015/praktikum-devops/internal/signer/signer.go:76.17,77.25 1 1
+github.com/rebus2015/praktikum-devops/internal/signer/signer.go:77.25,80.4 2 1
+github.com/rebus2015/praktikum-devops/internal/signer/signer.go:81.3,81.75 1 1
+github.com/rebus2015/praktikum-devops/internal/signer/signer.go:82.10,84.97 2 1
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:88.70,90.24 2 1
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:90.24,92.3 1 0
 github.com/rebus2015/praktikum-devops/internal/signer/signer.go:93.2,95.38 3 1
