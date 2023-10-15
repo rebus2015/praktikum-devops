@@ -41,7 +41,7 @@ func (s *MetricsRPCServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequ
 	var response pb.AddMetricsResponse
 	log.Println("Incoming request Updates, before decoder")
 
-	var metrics []*model.Metrics
+	var metrics = make([]*model.Metrics, 0)
 	err := json.Unmarshal(in.Metrics, &metrics)
 	if err != nil {
 		log.Printf("Failed to Decode incoming metricList %v, error: %v", string(in.Metrics), err)
@@ -60,25 +60,24 @@ func (s *MetricsRPCServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequ
 }
 
 func (s *MetricsRPCServer) Run() error {
-	host, _, err := net.SplitHostPort(s.cfg.ServerAddress)
-	if err != nil {
-		log.Fatal(err)
-		return fmt.Errorf("grpc server err(SplitHostPort): %w", err)
-	}
-	listen, err := net.Listen("tcp", host+s.cfg.PortRPC)
+	listen, err := net.Listen("tcp", s.cfg.RPCServerAddress)
 	if err != nil {
 		return fmt.Errorf("start RPC server error: %w", err)
 	}
 	s.srv = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			interceptors.GzipInterceptor,
+			//	interceptors.GzipInterceptor,
 			interceptors.RsaInterceptor(s.cfg.CryptoKey),
 			interceptors.HashInterceptor(s.cfg.Key),
 		))
 	// создаём gRPC-сервер без зарегистрированной службы
 	s.srv = grpc.NewServer()
 	// регистрируем сервис
-	pb.RegisterMetricsServer(s.srv, &MetricsRPCServer{})
+	pb.RegisterMetricsServer(s.srv, &MetricsRPCServer{
+		metricStorage:  s.metricStorage,
+		postgreStorage: s.postgreStorage,
+		cfg:            s.cfg,
+	})
 
 	fmt.Println("Сервер gRPC начал работу")
 	// получаем запрос gRPC

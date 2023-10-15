@@ -114,7 +114,7 @@ func main() {
 		return nil
 	})
 	if cfg.UseRPC {
-		if cfg.PortRPC == "" {
+		if cfg.RPCServerAddress == "" {
 			log.Println("Error gRPC server Start: TCP Port is Empty!")
 		} else {
 			grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)

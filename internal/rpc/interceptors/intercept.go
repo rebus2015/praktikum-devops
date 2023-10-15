@@ -115,7 +115,6 @@ func HashInterceptor(key string) grpc.UnaryServerInterceptor {
 				}
 			}
 		}
-
 		return handler(ctx, data)
 	}
 }

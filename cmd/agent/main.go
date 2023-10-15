@@ -23,10 +23,13 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/shirou/gopsutil/v3/mem"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/rebus2015/praktikum-devops/internal/agent"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/signer"
+	pb "github.com/rebus2015/praktikum-devops/proto"
 )
 
 type gauge float64
@@ -254,16 +257,14 @@ func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *r
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
-		log.Printf("Error request '%v'\n", err)
-		log.Panicf("Error request '%v'\n", err)
+		log.Panicf("Error request '%s'", err.Error())
 	}
 
 	buf := bytes.NewBuffer(data)
 	if cfg.CryptoKey != nil {
 		d, err1 := encrypt(data, cfg.CryptoKey)
 		if err1 != nil {
-			log.Printf("Create Request failed! with error: %s\n", err)
-			log.Panicf("Create Request failed! with error: %s\n", err)
+			log.Panicf("Create Request failed! with error: %s", err.Error())
 		}
 		buf = bytes.NewBuffer(d)
 	}
@@ -295,25 +296,56 @@ func GetLocalIP() string {
 }
 
 func sendreq(ctx context.Context, args agent.Args) error {
-	r := request(ctx, args.Metrics, args.Config)
-	response, err := args.Client.Do(r)
-	if err != nil {
-		log.Printf("Send request error: %v", err)
-		return fmt.Errorf("send request error:%w", err)
-	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			log.Printf("response.Body.Close error: %v", err)
+	if args.Config.UseRPC {
+		conn, err := grpc.Dial(args.Config.RPCServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return fmt.Errorf("dial RPC error: %w", err)
 		}
-	}()
+		defer conn.Close()
+		c := pb.NewMetricsClient(conn)
+		data, err := json.Marshal(args.Metrics)
+		if err != nil {
+			log.Printf("Error request '%v'\n", err)
+			log.Panicf("Error request '%v'\n", err)
+		}
 
-	b, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Printf("Read response body error: %v", err)
-		return fmt.Errorf("responce read error:%w", err)
+		if args.Config.CryptoKey != nil {
+			d, err1 := encrypt(data, args.Config.CryptoKey)
+			if err1 != nil {
+				log.Printf("Create Request failed! with error: %s", err)
+				return fmt.Errorf("create Request failed! with error: %w", err)
+			}
+			data = d
+		}
+
+		resp, err := c.AddMetrics(ctx, &pb.AddMetricsRequest{Metrics: data})
+		if err != nil {
+			return fmt.Errorf("send by RPC error: %w", err)
+		}
+		if resp.Error != "" {
+			return fmt.Errorf("server response error: %s", resp.Error)
+		}
+	} else {
+		r := request(ctx, args.Metrics, args.Config)
+		response, err := args.ClientHTTP.Do(r)
+		if err != nil {
+			log.Printf("Send request error: %v", err)
+			return fmt.Errorf("send request error:%w", err)
+		}
+		defer func() {
+			if err := response.Body.Close(); err != nil {
+				log.Printf("response.Body.Close error: %v", err)
+			}
+		}()
+
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			log.Printf("Read response body error: %v", err)
+			return fmt.Errorf("responce read error:%w", err)
+		}
+
+		log.Printf("Client request for update metric %s\n", b)
 	}
-
-	log.Printf("Client request for update metric %s\n", b)
 	fmt.Println()
 	return nil
 }
@@ -372,9 +404,9 @@ func (m *metricset) updateSendMultiple(ctx context.Context, cfg *agent.Config) e
 			Descriptor: i,
 			ExecFn:     sendreq,
 			Args: agent.Args{
-				Client:  client,
-				Metrics: valuer(section),
-				Config:  cfg,
+				ClientHTTP: client,
+				Metrics:    valuer(section),
+				Config:     cfg,
 			},
 		})
 	}
