@@ -43,11 +43,11 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.confFile, "config", "", "Pass the conf.json path")
 	flag.StringVar(&conf.confFile, "c", "", "Pass the conf.json path (shorthand)")
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
-	flag.StringVar(&conf.RPCServerAddress, "tcp-host", ":3200", "Server port for RPC")
+	flag.StringVar(&conf.RPCServerAddress, "tcp-host", "", "Server port for RPC")
 	flag.DurationVar(&conf.StoreInterval, "i", time.Second*30, "Metrics save to file interval")
 	flag.StringVar(&conf.StoreFile, "f", "", "Metrics repository file path")
 	flag.BoolVar(&conf.Restore, "r", false, "Restore metric values from file before start")
-	flag.BoolVar(&conf.UseRPC, "grpc", true, "Start gRPC server for metrics Update")
+	flag.BoolVar(&conf.UseRPC, "grpc", false, "Start gRPC server for metrics Update")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
 	flag.StringVar(&conf.TrustedSubnet, "t", "", "Trusted subnet CIDR")
 	flag.StringVar(&conf.ConnectionString, "d", "",
