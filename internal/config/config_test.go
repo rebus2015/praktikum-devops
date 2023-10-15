@@ -5,6 +5,7 @@ package config
 import (
 	"crypto/rsa"
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -381,6 +382,48 @@ func TestConfig_getCryptoKey(t *testing.T) {
 				return
 			}
 			assert.True(t, c.CryptoKey != nil)
+		})
+	}
+}
+
+func TestConfig_parseSubnet(t *testing.T) {
+	type fields struct {
+		TrustedSubnet string
+	}
+	tests := []struct {
+		want    *net.IPNet
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name:    "positive 1",
+			fields:  fields{TrustedSubnet: "192.0.2.0/24"},
+			wantErr: false,
+		},
+		{
+			name:    "negative 1",
+			fields:  fields{TrustedSubnet: "192.0.260.0/24"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Config{
+				TrustedSubnet: tt.fields.TrustedSubnet,
+			}
+			_, ipv4Net, err1 := net.ParseCIDR(c.TrustedSubnet)
+			if (err1 != nil) != tt.wantErr {
+				t.Errorf("Config.parseSubnet() error = %v", err1)
+			}
+			got, err := c.parseSubnet()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Config.parseSubnet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, ipv4Net) {
+				t.Errorf("Config.parseSubnet() = %v, want %v", got, ipv4Net)
+			}
 		})
 	}
 }
