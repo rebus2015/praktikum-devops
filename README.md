@@ -66,3 +66,10 @@ Build commit: LATEST COMMIT
 	go build -ldflags "-X 'main.buildVersion=vN.N.NN' -X 'main.buildDate=$(date +'%Y/%m/%d %H:%M:%S')'  -X 'main.buildCommit=YOUR COMMIT TEXT'" cmd/agent/main.go
 
 ```
+# Обмен метриками между клиентом и сервером по протоколу TCP
+Для обмена по ТСР при запуске сервера и клиента необходимо указть следующие параметры
+```
+	переменная окружения RPC, флаг -пкзс типа bool 
+	переменная окружения RPC_HOST, флаг -tcp-host типа string ":3200" или "localhost:3200"	
+
+```
