@@ -275,24 +275,39 @@ func request(ctx context.Context, metrics []model.Metrics, cfg *agent.Config) *r
 		log.Panicf("Create Request failed! with error: %v\n", err)
 	}
 	req.Header.Add("Content-type", "application/json")
-	req.Header.Add("X-Real-IP", GetLocalIP())
+	for _, ifaceip := range GetLocalIP() {
+		req.Header.Add("X-Real-IP", ifaceip)
+	}
+
 	return req
 }
 
-func GetLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
+func GetLocalIP() []string {
+	var iplist []string
+	ifaces, err := net.Interfaces()
 	if err != nil {
-		return ""
+		log.Panicf("failed to get net interfaces, error: %s", err.Error())
 	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			log.Errorf("failed to get net interface ip, error: %s", err.Error())
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip.IsGlobalUnicast() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+				iplist = append(iplist, ip.String())
 			}
 		}
 	}
-	return ""
+	return iplist
 }
 
 func sendreq(ctx context.Context, args agent.Args) error {

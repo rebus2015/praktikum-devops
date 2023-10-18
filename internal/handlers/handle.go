@@ -436,15 +436,15 @@ func gzipMiddleware(next http.Handler) http.Handler {
 func subnetMiddleware(s subnet) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			addr := r.Header.Get("X-Real-IP")
-
-			if !s.CheckIP(addr) {
-				log.Printf("ipAddr '%s' is not from Trusted SubNet", addr)
-				http.Error(w, "request from untrusted subnet", http.StatusForbidden)
-				return
+			p := false
+			for _, addr := range r.Header.Values("X-Real-IP") {
+				if s.CheckIP(addr) && p {
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
-
-			next.ServeHTTP(w, r)
+			log.Println(" none of passed ipAddr is not from Trusted SubNet")
+			http.Error(w, "request from untrusted subnet", http.StatusForbidden)
 		})
 	}
 }

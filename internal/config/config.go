@@ -49,7 +49,7 @@ func GetConfig() (*Config, error) {
 	flag.BoolVar(&conf.Restore, "r", false, "Restore metric values from file before start")
 	flag.BoolVar(&conf.UseRPC, "grpc", false, "Start gRPC server for metrics Update")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
-	flag.StringVar(&conf.TrustedSubnet, "t", "", "Trusted subnet CIDR")
+	flag.StringVar(&conf.TrustedSubnet, "t", "19.168.0.0/12", "Trusted subnet CIDR")
 	flag.StringVar(&conf.ConnectionString, "d", "",
 		"Database connection string(PostgreSql)") // postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable
 	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address")
@@ -60,6 +60,11 @@ func GetConfig() (*Config, error) {
 		return nil, fmt.Errorf("error reading agent  config: %w", err)
 	}
 	err = conf.parseConfigFile()
+	if conf.TrustedSubnet != "" && conf.InitialSubnet == nil {
+		if conf.InitialSubnet, err = conf.parseSubnet(); err != nil {
+			return nil, fmt.Errorf("time.Subnet error: %w", err)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent config(Json): %w", err)
 	}
