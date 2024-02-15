@@ -49,8 +49,8 @@ func GetConfig() (*Config, error) {
 	flag.BoolVar(&conf.Restore, "r", false, "Restore metric values from file before start")
 	flag.BoolVar(&conf.UseRPC, "grpc", true, "Start gRPC server for metrics Update")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
-	flag.StringVar(&conf.TrustedSubnet, "t", "19.168.0.0/12", "Trusted subnet CIDR")
-	flag.StringVar(&conf.ConnectionString, "d", "postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable",
+	flag.StringVar(&conf.TrustedSubnet, "t", "", "Trusted subnet CIDR") // 19.168.0.0/12
+	flag.StringVar(&conf.ConnectionString, "d", "",
 		"Database connection string(PostgreSql)") // postgresql://pguser:pgpwd@localhost:5432/devops?sslmode=disable
 	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address")
 	flag.Parse()

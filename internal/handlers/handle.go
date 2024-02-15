@@ -92,7 +92,9 @@ func NewRouter(
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
-	r.Use(subnetMiddleware(cfg))
+	if cfg.InitialSubnet != nil {
+		r.Use(subnetMiddleware(cfg))
+	}
 	r.Mount("/debug", middleware.Profiler())
 	r.Get("/", GetAllHandler(metricStorage))
 
