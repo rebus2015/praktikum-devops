@@ -436,9 +436,8 @@ func gzipMiddleware(next http.Handler) http.Handler {
 func subnetMiddleware(s subnet) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			p := false
 			for _, addr := range r.Header.Values("X-Real-IP") {
-				if s.CheckIP(addr) && p {
+				if s.CheckIP(addr) {
 					next.ServeHTTP(w, r)
 					return
 				}

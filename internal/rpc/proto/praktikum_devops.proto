@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/rebus2015/praktikum-devops/proto";
+
+// Запрос на обновление метрик
+message AddMetricsRequest{
+	bytes metrics = 1; // json-массив метрик в виде слайса из байт
+} 
+
+// Результат обновления метрик
+message AddMetricsResponse{
+  string error = 1; // сообщение об ошибке
+}
+
+// Результат проверки доступности БД
+message PingRequest{
+}
+
+// Результат проверки доступности БД
+message PingResponse{
+  int64 status = 1; // http-статус
+  string error = 2; // сообщение об ошибке
+}
+
+// Запрос на обновление метрик
+message UpdateMetricRequest{
+  string mtype = 1; // тип метрики
+  string mname = 2;  // имя метрики
+  string val = 3;  // имя метрики
+} 
+
+// Результат обновления метрик
+message UpdateMetricResponse{
+  string error = 1; // сообщение об ошибке
+}
+
+// Запрос на обновление метрик
+message UpdateJSONMetricRequest{
+	bytes metrics = 1; // json-представление метрики для обновления 
+} 
+
+// Результат обновления метрик
+message UpdateJSONMetricResponse{
+  bytes metrics = 1; /// json-представление обновленной метрики
+  string error = 2; // сообщение об ошибке
+}
+
+message GetMetricRequest{
+  string mtype = 1; // тип метрики
+  string mname = 2;  // имя метрики
+}
+
+message GetMetricResponse{
+  string result = 1; // значение метрики 
+  string error = 2; // ошибка получения метрики
+}
+
+message GetJSONMetricRequest{
+  bytes metric = 1; // json-массив метрик в виде слайса из байт
+
+}
+
+message GetJSONMetricResponse{
+  bytes result = 1; // значение метрики 
+  string error = 2; // ошибка получения метрики
+}
+
+
+service Metrics{
+  rpc Ping(PingRequest) returns (PingResponse); // Проверка доступности БД
+  rpc AddMetrics(AddMetricsRequest) returns (AddMetricsResponse); // Массовое обновление метрик через json
+  rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse); // Добавление метрики через контекст
+  rpc UpdateJSONMetric(UpdateJSONMetricRequest) returns (UpdateJSONMetricResponse); // Добавление метрики через json
+  rpc GetMetric(GetMetricRequest) returns (GetMetricResponse); // Получение значния метрики по имени и типу
+  rpc GetJSONMetric(GetJSONMetricRequest) returns (GetJSONMetricResponse); // Получение значния метрики по имени и типу
+}              

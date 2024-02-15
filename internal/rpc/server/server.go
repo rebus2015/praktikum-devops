@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 
-	pb "github.com/rebus2015/praktikum-devops/proto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -15,6 +14,7 @@ import (
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/model"
 	"github.com/rebus2015/praktikum-devops/internal/rpc/interceptors"
+	pb "github.com/rebus2015/praktikum-devops/internal/rpc/proto"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 )
@@ -35,6 +35,26 @@ func NewRPCServer(storage storage.Repository,
 		postgreStorage: pgsStorage,
 		cfg:            conf,
 	}
+}
+
+func (s *MetricsRPCServer) Ping(ctx context.Context, in *pb.PingRequest) (*pb.PingResponse, error) {
+	var response pb.PingResponse
+	log.Println("Incoming request Ping")
+	// При успешной проверке хендлер должен вернуть HTTP-статус 200 OK, при неуспешной — 500 Internal Server Error.
+	if s.postgreStorage == nil {
+		response.Status = 500
+		response.Error = status.Error(codes.Internal,
+			"Failed to ping database: nil reference exception: postgreStorage udefined").Error()
+		return &response, fmt.Errorf("nil reference exception: postgreStorage udefined ")
+	}
+	if err := s.postgreStorage.Ping(ctx); err != nil {
+		log.Printf("Cannot ping database because %s", err)
+		response.Status = 500
+		response.Error = status.Errorf(codes.Internal, "Failed to ping database because %s", err).Error()
+		return &response, fmt.Errorf("failed to Decode incoming metricList %w", err)
+	}
+	response.Status = 200
+	return &response, nil
 }
 
 func (s *MetricsRPCServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequest) (*pb.AddMetricsResponse, error) {
@@ -59,19 +79,54 @@ func (s *MetricsRPCServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequ
 	return &response, nil
 }
 
+const (
+	counter string = "counter"
+	gauge   string = "gauge"
+)
+
+func (s *MetricsRPCServer) updateMetric(ctx context.Context, in *pb.UpdateMetricRequest) (*pb.UpdateMetricResponse, error) {
+	var response pb.UpdateMetricResponse
+	log.Println("Incoming request Updates, before decoder")
+
+	mtype := in.Mname
+	name := in.Mtype
+	val := in.Val
+	var err error
+	switch mtype {
+	case gauge:
+		_, err = s.metricStorage.AddGauge(name, val)
+	case counter:
+		_, err = s.metricStorage.AddCounter(name, val)
+	default:
+		{
+			log.Printf("Error: [UpdateMetricHandlerFunc] Update metric error: %v", err)
+			response.Error = status.Errorf(codes.Internal, "Update single metric error: %v", err).Error()
+			return &response, fmt.Errorf("update single metric error: %w", err)
+		}
+	}
+	if err != nil {
+		log.Printf("Error: [UpdateMetricHandlerFunc] Update metric error: %v", err)
+		response.Error = status.Errorf(codes.Internal, "Update single metric error: %v", err).Error()
+		return &response, fmt.Errorf("Update single metric error: %w", err)
+	}
+
+	return &response, nil
+}
+
 func (s *MetricsRPCServer) Run() error {
 	listen, err := net.Listen("tcp", s.cfg.RPCServerAddress)
 	if err != nil {
 		return fmt.Errorf("start RPC server error: %w", err)
 	}
+
 	s.srv = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			//	interceptors.GzipInterceptor,
+			interceptors.SubnetCheckInterceptor(s.cfg),
+			interceptors.GzipInterceptor,
 			interceptors.RsaInterceptor(s.cfg.CryptoKey),
 			interceptors.HashInterceptor(s.cfg.Key),
 		))
-	// создаём gRPC-сервер без зарегистрированной службы
-	s.srv = grpc.NewServer()
+
 	// регистрируем сервис
 	pb.RegisterMetricsServer(s.srv, &MetricsRPCServer{
 		metricStorage:  s.metricStorage,

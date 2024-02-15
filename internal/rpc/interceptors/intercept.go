@@ -10,8 +10,8 @@ import (
 	"io"
 
 	"github.com/rebus2015/praktikum-devops/internal/model"
+	pb "github.com/rebus2015/praktikum-devops/internal/rpc/proto"
 	"github.com/rebus2015/praktikum-devops/internal/signer"
-	pb "github.com/rebus2015/praktikum-devops/proto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -19,12 +19,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const methodPing string = "/proto.Metrics/Ping"
+
 func GzipInterceptor(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
+	if info.FullMethod == methodPing {
+		return handler(ctx, req)
+	}
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		values := md.Get("gzip")
 		if len(values) == 0 {
@@ -63,7 +68,7 @@ func RsaInterceptor(key *rsa.PrivateKey) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if key == nil {
+		if key == nil || info.FullMethod == methodPing {
 			return handler(ctx, req)
 		}
 		data, ok := req.(*pb.AddMetricsRequest)
@@ -75,7 +80,8 @@ func RsaInterceptor(key *rsa.PrivateKey) grpc.UnaryServerInterceptor {
 			log.Printf("Failed to create gzip reader: %v", err.Error())
 			return nil, status.Errorf(codes.Internal, "gzip interceptor error: %v", err)
 		}
-		return handler(ctx, nextData)
+		data.Metrics = nextData
+		return handler(ctx, data)
 	}
 }
 
@@ -86,7 +92,7 @@ func HashInterceptor(key string) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		if key == "" {
+		if key == "" || info.FullMethod == methodPing {
 			return handler(ctx, req)
 		}
 
@@ -95,12 +101,18 @@ func HashInterceptor(key string) grpc.UnaryServerInterceptor {
 		if !ok {
 			return nil, status.Errorf(codes.Canceled, "%v", "hash interceptor error: corrupted data")
 		}
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			values := md.Get("single")
+			if len(values) == 0 {
+				return handler(ctx, req)
+			}
+		}
+
 		reader := bytes.NewReader(data.Metrics)
 		log.Println("Incoming request Updates, before decoder")
 
-		var metrics []*model.Metrics
 		bodyBytes, _ := io.ReadAll(reader)
-		err = json.Unmarshal(bodyBytes, &metrics)
+		metrics, err := getMetrics(bodyBytes)
 		if err != nil {
 			log.Printf("Failed to Decode incoming metricList %v, error: %v", string(bodyBytes), err)
 			return nil, status.Errorf(codes.InvalidArgument, "Failed to Decode incoming metricList %v", err)
@@ -117,6 +129,62 @@ func HashInterceptor(key string) grpc.UnaryServerInterceptor {
 		}
 		return handler(ctx, data)
 	}
+}
+
+func getMetrics(body []byte) ([]*model.Metrics, error) {
+	var metrics []*model.Metrics
+	x := bytes.TrimLeft(body, " \t\r\n")
+
+	isArray := len(x) > 0 && x[0] == '['
+	isObject := len(x) > 0 && x[0] == '{'
+
+	switch {
+	case isArray:
+		err := json.Unmarshal(body, &metrics)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshall error:%w", err)
+		}
+	case isObject:
+		var metric *model.Metrics
+		err := json.Unmarshal(body, metric)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshall error:%w", err)
+		}
+		metrics = append(metrics, metric)
+	default:
+		return nil, fmt.Errorf("unmarshall error: couldn't define the type of structure")
+	}
+
+	return metrics, nil
+}
+
+func SubnetCheckInterceptor(s subnet) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		if s == nil {
+			return handler(ctx, req)
+		}
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			values := md.Get("X-Real-IP")
+			if len(values) == 0 {
+				return nil, status.Errorf(codes.Code(403), "%v", "Request is from Untrusted subnet")
+			}
+			for _, addr := range values {
+				if s.CheckIP(addr) {
+					return handler(ctx, req)
+				}
+			}
+		}
+		return nil, status.Errorf(codes.Code(403), "%v", "Request is from Untrusted subnet")
+	}
+}
+
+type subnet interface {
+	CheckIP(ipAddr string) bool
 }
 
 // checkMetric внутренняя функция проверки целостности метрики.

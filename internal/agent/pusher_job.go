@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rebus2015/praktikum-devops/internal/model"
-	pb "github.com/rebus2015/praktikum-devops/proto"
+	pb "github.com/rebus2015/praktikum-devops/internal/rpc/proto"
 )
 
 type ExecutionFn func(ctx context.Context, args Args) error

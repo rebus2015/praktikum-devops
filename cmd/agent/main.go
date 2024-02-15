@@ -28,8 +28,8 @@ import (
 
 	"github.com/rebus2015/praktikum-devops/internal/agent"
 	"github.com/rebus2015/praktikum-devops/internal/model"
+	pb "github.com/rebus2015/praktikum-devops/internal/rpc/proto"
 	"github.com/rebus2015/praktikum-devops/internal/signer"
-	pb "github.com/rebus2015/praktikum-devops/proto"
 )
 
 type gauge float64
