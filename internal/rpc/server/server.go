@@ -79,12 +79,7 @@ func (s *MetricsRPCServer) AddMetrics(ctx context.Context, in *pb.AddMetricsRequ
 	return &response, nil
 }
 
-const (
-	counter string = "counter"
-	gauge   string = "gauge"
-)
-
-func (s *MetricsRPCServer) updateMetric(ctx context.Context, in *pb.UpdateMetricRequest) (*pb.UpdateMetricResponse, error) {
+func (s *MetricsRPCServer) UpdateMetric(ctx context.Context, in *pb.UpdateMetricRequest) (*pb.UpdateMetricResponse, error) {
 	var response pb.UpdateMetricResponse
 	log.Println("Incoming request Updates, before decoder")
 
@@ -93,9 +88,9 @@ func (s *MetricsRPCServer) updateMetric(ctx context.Context, in *pb.UpdateMetric
 	val := in.Val
 	var err error
 	switch mtype {
-	case gauge:
+	case "gauge":
 		_, err = s.metricStorage.AddGauge(name, val)
-	case counter:
+	case "counter":
 		_, err = s.metricStorage.AddCounter(name, val)
 	default:
 		{
@@ -107,7 +102,7 @@ func (s *MetricsRPCServer) updateMetric(ctx context.Context, in *pb.UpdateMetric
 	if err != nil {
 		log.Printf("Error: [UpdateMetricHandlerFunc] Update metric error: %v", err)
 		response.Error = status.Errorf(codes.Internal, "Update single metric error: %v", err).Error()
-		return &response, fmt.Errorf("Update single metric error: %w", err)
+		return &response, fmt.Errorf("update single metric error: %w", err)
 	}
 
 	return &response, nil
