@@ -34,7 +34,7 @@ func TestGetConfig(t *testing.T) {
 				TrustedSubnet:    "",
 				confFile:         "",
 				RPCServerAddress: "127.0.0.1:3021",
-				UseRPC:           true,
+				UseRPC:           false,
 			},
 			wantErr: false,
 		},
