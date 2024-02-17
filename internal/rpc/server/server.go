@@ -137,3 +137,7 @@ func (s *MetricsRPCServer) Run() error {
 	}
 	return nil
 }
+
+func (s *MetricsRPCServer) Shutdown() {
+	s.srv.GracefulStop()
+}

@@ -88,21 +88,26 @@ func main() {
 		WriteTimeout: fileWriteTimeout,
 		Handler:      r,
 	}
-	idleConnsClosed := make(chan struct{})
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
-	g := errgroup.Group{}
-	g.Go(func() error {
+
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan,
+			syscall.SIGINT,
+			syscall.SIGTERM,
+			syscall.SIGQUIT)
 		<-sigChan
+		cancel()
+	}()
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		<-gCtx.Done()
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// ошибки закрытия Listener
 			log.Printf("HTTP server Shutdown: %v", err)
 			return fmt.Errorf("HTTP server Shutdown: %w", err)
 		}
-		close(idleConnsClosed)
+
 		return nil
 	})
 	g.Go(func() error {
@@ -119,6 +124,13 @@ func main() {
 		} else {
 			grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)
 			g.Go(func() error {
+				<-gCtx.Done()
+				grpcSrv.Shutdown()
+				log.Println("GRPC Server shutdown gracefully!")
+				return nil
+			})
+
+			g.Go(func() error {
 				if err := grpcSrv.Run(); err != nil {
 					// ошибки запуска Listener
 					log.Printf("Error gRPC server Start: %v", err)
@@ -132,6 +144,5 @@ func main() {
 	if err != nil {
 		log.Printf("error: server exited with %v", err)
 	}
-	<-idleConnsClosed
 	fmt.Println("Server Shutdown gracefully")
 }
