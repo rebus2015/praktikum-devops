@@ -84,7 +84,6 @@ func (c *Config) UnmarshalJSON(data []byte) (err error) {
 		TrustedSubnet    string `json:"trusted_subnet"`
 		Restore          bool   `json:"restore"`
 	}
-
 	if err = json.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("json.unmarshal error: %w", err)
 	}
@@ -146,28 +145,6 @@ func (c *Config) parseConfigFile() error {
 	err = json.Unmarshal(r, &cfg)
 	if err != nil {
 		return fmt.Errorf("json.Unmarshal config error: %w", err)
-	}
-
-	if c.ServerAddress == "" {
-		c.ServerAddress = cfg.ServerAddress
-	}
-	if c.StoreInterval == time.Second*0 {
-		c.StoreInterval = cfg.StoreInterval
-	}
-	if !c.Restore {
-		c.Restore = cfg.Restore
-	}
-	if c.StoreFile == "" {
-		c.StoreFile = cfg.StoreFile
-	}
-	if c.ConnectionString == "" {
-		c.ConnectionString = cfg.ConnectionString
-	}
-	if c.CryptoKeyFile == "" {
-		c.CryptoKeyFile = cfg.CryptoKeyFile
-	}
-	if c.TrustedSubnet == "" {
-		c.TrustedSubnet = cfg.TrustedSubnet
 	}
 	return nil
 }
