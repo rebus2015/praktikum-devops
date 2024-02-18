@@ -148,6 +148,7 @@ func (c *Config) parseConfigFile() error {
 	}
 	return nil
 }
+
 func (c *Config) getCryptoKey() error {
 	if c.CryptoKeyFile == "" {
 		return nil
