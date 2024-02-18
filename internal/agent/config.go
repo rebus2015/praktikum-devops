@@ -23,14 +23,16 @@ var (
 )
 
 type Config struct {
-	CryptoKey      *rsa.PublicKey
-	ServerAddress  string        `env:"ADDRESS" json:"address"`                 // Адрес сервера
-	CryptoKeyFile  string        `env:"CRYPTO_KEY" json:"crypto_key,omitempty"` // Путь к файлу с открытым ключом
-	confFile       string        `env:"CONFIG" json:"-"`
-	Key            string        `env:"KEY" json:"-"`                        // Ключ для подписи данных
-	ReportInterval time.Duration `env:"PUSH_TIMEOUT" json:"report_interval"` // Интервал отправки метрик на сервер
-	PollInterval   time.Duration `env:"POLL_INTERVAL" json:"poll_interval"`  // Интервал сбора метрик
-	RateLimit      int           `env:"RATE_LIMIT" json:"-"`                 // Количество одновременных запросов
+	CryptoKey        *rsa.PublicKey
+	ServerAddress    string        `env:"ADDRESS" json:"address"`                 // Адрес сервера
+	CryptoKeyFile    string        `env:"CRYPTO_KEY" json:"crypto_key,omitempty"` // Путь к файлу с открытым ключом
+	confFile         string        `env:"CONFIG" json:"-"`
+	Key              string        `env:"KEY" json:"-"` // Ключ для подписи данных
+	RPCServerAddress string        `env:"RPC_HOST" json:"-"`
+	ReportInterval   time.Duration `env:"PUSH_TIMEOUT" json:"report_interval"` // Интервал отправки метрик на сервер
+	PollInterval     time.Duration `env:"POLL_INTERVAL" json:"poll_interval"`  // Интервал сбора метрик
+	RateLimit        int           `env:"RATE_LIMIT" json:"-"`                 // Количество одновременных запросов
+	UseRPC           bool          `env:"RPC" json:"-"`                        // запускать gRPC- клиент
 
 }
 
@@ -39,17 +41,28 @@ func GetConfig() (*Config, error) {
 	flag.StringVar(&conf.confFile, "config", "", "Pass the conf.json path")
 	flag.StringVar(&conf.confFile, "c", "", "Pass the conf.json path (shorthand)")
 	flag.StringVar(&conf.ServerAddress, "a", "127.0.0.1:8080", "Server address")
+	flag.StringVar(&conf.RPCServerAddress, "tcp-host", "", "Server host addr for RPC")
 	flag.DurationVar(&conf.ReportInterval, "r", defReportInterval, "Interval before push metrics to server")
 	flag.DurationVar(&conf.PollInterval, "p", defPollInterval, "Interval between metrics reads from runtime")
 	flag.StringVar(&conf.Key, "k", "", "Key to sign up data with SHA256 algorythm")
 	flag.IntVar(&conf.RateLimit, "l", 5, "Workers count")
 	flag.StringVar(&conf.CryptoKeyFile, "crypto-key", "", "Public Key file address")
+	flag.BoolVar(&conf.UseRPC, "grpc", false, "Start gRPC client for metrics Update")
 	flag.Parse()
 
 	err := env.Parse(&conf)
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent  config(ENV): %w", err)
 	}
+	err = conf.parseConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("error reading agent config(Json): %w", err)
+	}
+
+	if err = conf.getCryptoKey(); err != nil {
+		return nil, fmt.Errorf("error reading agent config, failed to get CryptoKey: %w", err)
+	}
+
 	err = conf.parseConfigFile()
 	if err != nil {
 		return nil, fmt.Errorf("error reading agent config(Json): %w", err)

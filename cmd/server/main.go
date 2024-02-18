@@ -11,9 +11,11 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/rebus2015/praktikum-devops/internal/config"
 	"github.com/rebus2015/praktikum-devops/internal/handlers"
+	rpc "github.com/rebus2015/praktikum-devops/internal/rpc/server"
 	"github.com/rebus2015/praktikum-devops/internal/storage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/dbstorage"
 	"github.com/rebus2015/praktikum-devops/internal/storage/filestorage"
@@ -86,27 +88,61 @@ func main() {
 		WriteTimeout: fileWriteTimeout,
 		Handler:      r,
 	}
-	idleConnsClosed := make(chan struct{})
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
+
 	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan,
+			syscall.SIGINT,
+			syscall.SIGTERM,
+			syscall.SIGQUIT)
 		<-sigChan
+		cancel()
+	}()
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		<-gCtx.Done()
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// ошибки закрытия Listener
 			log.Printf("HTTP server Shutdown: %v", err)
+			return fmt.Errorf("HTTP server Shutdown: %w", err)
 		}
-		close(idleConnsClosed)
-	}()
-	err = srv.ListenAndServe()
-	log.Printf("server started \n address:%v \n database:%v,\n restore interval: %v ",
-		cfg.ServerAddress, cfg.ConnectionString, cfg.StoreInterval)
 
-	if err != nil {
-		log.Printf("server exited with %v", err)
+		return nil
+	})
+	g.Go(func() error {
+		if err := srv.ListenAndServe(); err != nil {
+			// ошибки запуска Listener
+			log.Printf("Error HTTP server Start: %v", err)
+			return fmt.Errorf("HTTP server Start: %w", err)
+		}
+		return nil
+	})
+	if cfg.UseRPC {
+		if cfg.RPCServerAddress == "" {
+			log.Println("Error gRPC server Start: TCP Port is Empty!")
+		} else {
+			grpcSrv := rpc.NewRPCServer(storage, sqlDBStorage, *cfg)
+			g.Go(func() error {
+				<-gCtx.Done()
+				grpcSrv.Shutdown()
+				log.Println("GRPC Server shutdown gracefully!")
+				return nil
+			})
+
+			g.Go(func() error {
+				if err := grpcSrv.Run(); err != nil {
+					// ошибки запуска Listener
+					log.Printf("Error gRPC server Start: %v", err)
+					return fmt.Errorf("gRPC server Start error: %w", err)
+				}
+				return nil
+			})
+		}
 	}
-	<-idleConnsClosed
+	err = g.Wait()
+	if err != nil {
+		log.Printf("error: server exited with %v", err)
+	}
 	fmt.Println("Server Shutdown gracefully")
 }

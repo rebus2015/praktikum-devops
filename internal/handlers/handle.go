@@ -1,5 +1,5 @@
-// Package handlers создает экземпляр роутера и описывает все доступные эндпоинты
-// содержит реализацию необходимого middleware.
+// Package handlers создает экземпляр роутера и описывает все доступные эндпоинты.
+// Cодержит реализацию необходимого middleware.
 package handlers
 
 import (
@@ -76,6 +76,10 @@ const (
 	retUpdateJSONResultMessage string = "Возвращаем UpdateJSON result :%v"
 )
 
+type subnet interface {
+	CheckIP(ipAddr string) bool
+}
+
 // NewRouter инициализация роутера с помощью библиотеки chi и описание доступных эндпоинтов.
 func NewRouter(
 	metricStorage storage.Repository,
@@ -88,6 +92,9 @@ func NewRouter(
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(gzip.BestSpeed, contentTypes...))
+	if cfg.InitialSubnet != nil {
+		r.Use(subnetMiddleware(cfg))
+	}
 	r.Mount("/debug", middleware.Profiler())
 	r.Get("/", GetAllHandler(metricStorage))
 
@@ -426,6 +433,21 @@ func gzipMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), bodyContextKey{}, buf)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func subnetMiddleware(s subnet) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for _, addr := range r.Header.Values("X-Real-IP") {
+				if s.CheckIP(addr) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			log.Println(" none of passed ipAddr is not from Trusted SubNet")
+			http.Error(w, "request from untrusted subnet", http.StatusForbidden)
+		})
+	}
 }
 
 func rsaMiddleware(key *rsa.PrivateKey) func(next http.Handler) http.Handler {

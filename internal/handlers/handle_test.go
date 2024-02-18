@@ -60,7 +60,13 @@ func Test_UpdateCounterHandlerFunc(t *testing.T) {
 			contentType: "text/plain",
 		},
 	}
-	cfg := config.Config{StoreFile: "", ConnectionString: ""}
+	cfg := config.Config{
+		ServerAddress:    "127.0.0.1:8080",
+		StoreFile:        "",
+		ConnectionString: "",
+		UseRPC:           false,
+		TrustedSubnet:    "19.168.0.0/12",
+	}
 	var metricStorage storage.Repository = storage.NewRepositoryWrapper(
 		memstorage.NewStorage(), nil)
 	dbStorage := &sqlStorageMock{}

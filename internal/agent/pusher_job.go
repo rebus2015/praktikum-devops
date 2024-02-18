@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rebus2015/praktikum-devops/internal/model"
+	pb "github.com/rebus2015/praktikum-devops/internal/rpc/proto"
 )
 
 type ExecutionFn func(ctx context.Context, args Args) error
@@ -15,9 +16,10 @@ type Result struct {
 }
 
 type Args struct {
-	Client  *retryablehttp.Client
-	Config  *Config
-	Metrics []model.Metrics
+	ClientHTTP *retryablehttp.Client
+	ClientRPC  *pb.MetricsClient
+	Config     *Config
+	Metrics    []model.Metrics
 }
 
 type Job struct {
