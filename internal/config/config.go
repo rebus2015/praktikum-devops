@@ -141,8 +141,7 @@ func (c *Config) parseConfigFile() error {
 	if err != nil {
 		return fmt.Errorf("io.ReadAll(josnFile) error: %w", err)
 	}
-	var cfg Config
-	err = json.Unmarshal(r, &cfg)
+	err = json.Unmarshal(r, &c)
 	if err != nil {
 		return fmt.Errorf("json.Unmarshal config error: %w", err)
 	}

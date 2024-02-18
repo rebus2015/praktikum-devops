@@ -195,7 +195,7 @@ func TestConfig_parseConfigFile(t *testing.T) {
 				StoreInterval:    time.Second * 1,
 				StoreFile:        "/path/to/file.db",
 				Restore:          true,
-				ConnectionString: "new value",
+				ConnectionString: "new_value=connection",
 				CryptoKeyFile:    "/path/to/key.pem",
 				confFile:         "",
 			},
@@ -204,7 +204,7 @@ func TestConfig_parseConfigFile(t *testing.T) {
 				"restore": true, 
 				"store_interval": "1s", 
 				"store_file": "/path/to/file.db", 
-				"database_dsn": "new value", 
+				"database_dsn": "new_value=connection", 
 				"crypto_key": "/path/to/key.pem" 
 			}`,
 			wantErr: false,
@@ -231,7 +231,7 @@ func TestConfig_parseConfigFile(t *testing.T) {
 				return
 			}
 
-			c := &Config{
+			c := Config{
 				ServerAddress:    tt.f.ServerAddress,
 				StoreInterval:    tt.f.StoreInterval,
 				StoreFile:        tt.f.StoreFile,
